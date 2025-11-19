@@ -1,0 +1,146 @@
+{
+  "database": "postgresql://localhost:5432/cstournamentdb",
+  "tables": [
+    {
+      "name": "teams",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(255)",
+          "nullable": true,
+          "primary_key": false,
+          "default": null
+        },
+        {
+          "name": "country",
+          "type": "VARCHAR(255)",
+          "nullable": true,
+          "primary_key": false,
+          "default": null
+        },
+        {
+          "name": "foundedon",
+          "type": "DATE",
+          "nullable": true,
+          "primary_key": false,
+          "default": null
+        },
+        {
+          "name": "founded_on",
+          "type": "DATE",
+          "nullable": true,
+          "primary_key": false,
+          "default": null
+        }
+      ]
+    },
+    {
+      "name": "admins",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "default": null
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "primary_key": false,
+          "default": null
+        },
+        {
+          "name": "password",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "primary_key": false,
+          "default": null
+        },
+        {
+          "name": "username",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "primary_key": false,
+          "default": null
+        }
+      ]
+    },
+    {
+      "name": "players",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "default": null
+        },
+        {
+          "name": "country",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "primary_key": false,
+          "default": null
+        },
+        {
+          "name": "date_of_birth",
+          "type": "DATE",
+          "nullable": false,
+          "primary_key": false,
+          "default": null
+        },
+        {
+          "name": "first_name",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "primary_key": false,
+          "default": null
+        },
+        {
+          "name": "joined_on",
+          "type": "DATE",
+          "nullable": false,
+          "primary_key": false,
+          "default": null
+        },
+        {
+          "name": "last_name",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "primary_key": false,
+          "default": null
+        },
+        {
+          "name": "nickname",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "primary_key": false,
+          "default": null
+        },
+        {
+          "name": "role",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "primary_key": false,
+          "default": null
+        },
+        {
+          "name": "team_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "default": null
+        }
+      ]
+    }
+  ]
+}
