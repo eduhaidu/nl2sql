@@ -1,7 +1,7 @@
 import ollama
 
 class PromptManager:
-    def __init__(self, nl_input="", model_name='phi3:3.8b', temperature=0.7, max_tokens=512, schema=None):
+    def __init__(self, nl_input="", model_name='nl2sql', temperature=0.7, max_tokens=512, schema=None):
         self.nl_input = nl_input
         self.model_name = model_name
         self.temperature = temperature
