@@ -21,6 +21,11 @@ class PromptManager:
             return data
         filtered_data = {key: data[key] for key in self.schema if key in data}
         return filtered_data
+    
+    def filter_relevant_tables(self, schema_info, nl_input):
+        relevant_tables = set()
+        nl_input_lower = nl_input.lower()
+        
 
     def get_response(self, nl_input):
         prompt = self.generate_prompt(nl_input)
@@ -28,4 +33,4 @@ class PromptManager:
             model = self.model_name,
             prompt = prompt
         )
-        return response
+        return response.response

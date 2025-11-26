@@ -15,4 +15,16 @@ Rules:
 - Handle NULL values appropriately
 - Use meaningful aliases for clarity
 
+Example Input:
+Schema:
+Table: Employees (id, name, department_id)
+Table: Departments (id, name)
+Natural Language Question: "List the names of employees and their department names."
+Example Output:SELECT Employees.name AS employee_name, Departments.name AS department_name
+FROM Employees
+JOIN Departments ON Employees.department_id = Departments.id;
+Input:
+Schema: {schema}
+Natural Language Question: "{question}"
+
 Output format: Plain SQL query only."""

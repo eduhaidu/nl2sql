@@ -1,0 +1,20 @@
+[{
+    "schema": "Table: employees\nColumns: id, name, department, salary",
+    "question": "Show all employees earning more than 50000",
+    "sql": "SELECT * FROM employees WHERE salary > 50000"
+},
+{
+    "schema": "Table: products\nColumns: id, name, price, stock",
+    "question": "List the names of products that are out of stock",
+    "sql": "SELECT name FROM products WHERE stock = 0"
+},
+{
+    "schema": "Tables: employees (id, name, dept_id), departments (id, name)",
+    "question": "List employee names with their department names",
+    "sql": "SELECT e.name, d.name FROM employees e JOIN departments d ON e.dept_id = d.id"
+},
+{
+    "schema": "Table: orders\nColumns: id, customer_id, total, order_date",
+    "question": "Count orders per month in 2024",
+    "sql": "SELECT strftime('%Y-%m', order_date) as month, COUNT(*) FROM orders WHERE strftime('%Y', order_date) = '2024' GROUP BY month"
+}]

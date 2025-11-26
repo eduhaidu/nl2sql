@@ -15,6 +15,11 @@ class Validator:
         except Exception as e:
             return str(e)
         
+    def calculate_execution_accuracy(self, execution_result, expected_result):
+        if execution_result == expected_result:
+            return 1.0
+        return 0.0
+        
     def validate_response(self, nl_input):
         schema_info = self.schema_processor.process_schema()
         filtered_schema = self.prompt_manager.filter_schema(schema_info)

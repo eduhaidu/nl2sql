@@ -3,8 +3,7 @@ from sqlalchemy.orm import sessionmaker
 
 class SQLAlchemySession:
     @staticmethod
-    def get_session(db_url='sqlite:///example.db'):
-
+    def get_session(db_url):
         engine = create_engine(db_url)
         Session = sessionmaker(bind=engine)
         return Session()

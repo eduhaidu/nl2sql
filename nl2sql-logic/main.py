@@ -22,7 +22,7 @@ app.add_middleware(
 )
 
 prompt_manager = PromptManager()
-schema_processor = SchemaProcessor()
+schema_processor = SchemaProcessor('sqlite:///test_databases/sample.db')
 
 @app.get("/")
 def read_root():
