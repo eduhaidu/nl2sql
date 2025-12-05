@@ -2,6 +2,7 @@ from typing import Dict
 import uuid
 from schema_processor import SchemaProcessor
 from prompt_manager import PromptManager
+from SQLAlchemySession import SQLAlchemySession
 
 class SessionManager:
     def __init__(self):
@@ -15,10 +16,13 @@ class SessionManager:
 
         prompt_manager = PromptManager(schema=schema_info)
 
+        sqlalchemy_session = SQLAlchemySession(db_url)
+
         self.sessions[session_id] = {
             "db_url": db_url,
             "schema_processor": schema_processor,
-            "prompt_manager": prompt_manager
+            "prompt_manager": prompt_manager,
+            "sqlalchemy_session": sqlalchemy_session
         }
         return session_id
     

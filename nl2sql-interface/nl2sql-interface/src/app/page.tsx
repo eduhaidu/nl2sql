@@ -2,12 +2,15 @@
 import axios from "axios";
 import ImportDB from "./importdb";
 import MessageBubble from "./MessageBubble";
+import ResultTable from "./ResultTable";
 import { useState, useEffect } from "react";
 
 export default function Home() {
   const [messages, setMessages] = useState<{ message: string; isUser: boolean }[]>([]);
   const [showImportDB, setShowImportDB] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [queryResult, setQueryResult] = useState<any[] | null>(null);
+  const [generatedSQL, setGeneratedSQL] = useState<string>("");
   
   // Cleanup session on page unload
   useEffect(() => {
@@ -49,13 +52,30 @@ export default function Home() {
         console.log("Response from backend:", response.data);
         const AIMessage = response.data.response;
         setMessages(prevMessages => [...prevMessages, { message: AIMessage, isUser: false }]);
+        
       } catch (error) {
         console.error("Error sending message:", error);
       }
     }
     await sendMessage(nlInput);
-    event.currentTarget.reset();
+    // event.currentTarget.reset();
   };
+
+  const executeQuery = async (query: string) => {
+    if (!sessionId){
+      alert("Please import a database first.");
+      return;
+    }
+    try{
+      const response = await axios.post(`http://127.0.0.1:8000/executesql/${sessionId}`, {
+        query: query
+      });
+      setQueryResult(response.data.result);
+    } catch (error) {
+      console.error("Error executing query:", error);
+    }
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-between p-24">
       <h1 className="text-4xl font-bold mb-8">Welcome to the NL2SQL Interface</h1>
@@ -87,6 +107,12 @@ export default function Home() {
           <MessageBubble key={index} message={msg.message} isUser={msg.isUser} />
         ))}
       </div>
+      {queryResult && (
+      <div className="w-full max-w-4xl mb-6">
+        <h2 className="text-2xl font-semibold mb-4">Query Results:</h2>
+        <ResultTable result={queryResult} />
+      </div>
+      )}
       <form action="submit" className="flex flex-col items-start" onSubmit={handleSubmit}>
         <label htmlFor="nl-input" className="block mb-2 text-lg font-medium text-gray-700">
           Enter your natural language query:

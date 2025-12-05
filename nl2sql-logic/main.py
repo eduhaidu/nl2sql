@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from NLInputModel import NLInputModel
 from DBURLInputModel import DBURLInputModel
+from QueryModel import QueryModel
 from session_manager import SessionManager
 
 app = FastAPI()
@@ -45,7 +46,8 @@ def process_nl_input(data: NLInputModel):
         return {"error": "Invalid session ID."}
     prompt_manager = session["prompt_manager"]
     response = prompt_manager.get_response(data.nl_input)
-    return {"response": response}
+    query = response.removeprefix("```sql\n")
+    return {"response": response, "query": query}
 
 @app.post("/dbupdate")
 def update_database_url(data: DBURLInputModel):
@@ -57,4 +59,17 @@ def update_database_url(data: DBURLInputModel):
         session_id = session_manager.create_session(data.database_url)
         return {"message": "Database URL updated and session created.", "session_id": session_id}
     except ValueError as e:
+        return {"error": str(e)}
+    
+@app.post("/executesql/{session_id}")
+def execute_sql_query(session_id: str, query: QueryModel):
+    session = session_manager.get_session(session_id)
+    if not session:
+        return {"error": "Invalid session ID."}
+    
+    try:
+        sqlalchemy_session = session["sqlalchemy_session"]
+        result = sqlalchemy_session.execute_query(query)
+        return {"result": result.result}
+    except Exception as e:
         return {"error": str(e)}

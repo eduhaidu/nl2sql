@@ -2,12 +2,11 @@ import ollama
 import json
 
 class PromptManager:
-    def __init__(self, nl_input="", model_name='nl2sql', temperature=0.7, max_tokens=512, schema=None):
+    def __init__(self, nl_input="", model_name='nl2sql', schema=None, database_type='sqlite'):
         self.nl_input = nl_input
         self.model_name = model_name
-        self.temperature = temperature
-        self.max_tokens = max_tokens
         self.schema = schema
+        self.database_type = database_type
         self.client = ollama.Client()
         self.examples = json.loads(open('prompt_examples.json').read())
         self.conversation_history = []
@@ -20,11 +19,15 @@ class PromptManager:
             "1. Only use tables and columns that exist in the provided database schema.\n"
             "2. Ensure SQL syntax is correct and compatible with the target database.\n"
             "3. Optimize queries for performance where possible.\n"
-            "4. Return only the SQL query without any additional text.\n"
+            "4. Return only the SQL query without any additional text, explanations or formatting.\n"
+            "5. Handle table and column names with spaces or special characters by enclosing them in square brackets or double quotes.\n"
         )
         context_prompt += "\n" + rules_prompt
         if self.schema:
             context_prompt += f" The database schema is as follows: {self.format_schema_for_prompt()}"
+        if self.database_type:
+            db_prompt = f"The target database type is {self.database_type}. Ensure the SQL syntax is compatible with this database."
+            context_prompt += "\n" + db_prompt
         self.conversation_history.append({"role": "system", "content": context_prompt})
 
     def format_schema_for_prompt(self):

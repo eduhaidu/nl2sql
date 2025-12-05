@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 class SQLAlchemySession:
@@ -13,7 +13,14 @@ class SQLAlchemySession:
 
     def execute_query(self, query):
         try:
-            result = self.session.execute(query)
-            return result.fetchall()
+            result = self.session.execute(text(query.query))
+            rows = result.fetchall()
+
+            if rows:
+                columns = result.keys()
+                result_list = [dict(zip(columns, row)) for row in rows]
+                return result_list
+            else:
+                return []
         except Exception as e:
             return str(e)
