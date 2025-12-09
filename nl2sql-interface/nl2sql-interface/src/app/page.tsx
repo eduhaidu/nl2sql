@@ -52,12 +52,13 @@ export default function Home() {
         console.log("Response from backend:", response.data);
         const AIMessage = response.data.response;
         setMessages(prevMessages => [...prevMessages, { message: AIMessage, isUser: false }]);
-        
+        setGeneratedSQL(response.data.query);
       } catch (error) {
         console.error("Error sending message:", error);
       }
     }
     await sendMessage(nlInput);
+    await executeQuery(generatedSQL);
     // event.currentTarget.reset();
   };
 
@@ -70,6 +71,7 @@ export default function Home() {
       const response = await axios.post(`http://127.0.0.1:8000/executesql/${sessionId}`, {
         query: query
       });
+      console.log("Query execution result:", response.data);
       setQueryResult(response.data.result);
     } catch (error) {
       console.error("Error executing query:", error);

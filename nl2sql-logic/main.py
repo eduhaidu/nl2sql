@@ -4,7 +4,7 @@ from NLInputModel import NLInputModel
 from DBURLInputModel import DBURLInputModel
 from QueryModel import QueryModel
 from session_manager import SessionManager
-
+from QueryExtractor import extract_sql_query
 app = FastAPI()
 
 # CORS configuration - allow both localhost and 127.0.0.1
@@ -46,7 +46,10 @@ def process_nl_input(data: NLInputModel):
         return {"error": "Invalid session ID."}
     prompt_manager = session["prompt_manager"]
     response = prompt_manager.get_response(data.nl_input)
-    query = response.removeprefix("```sql\n")
+    if "```sql" in response:
+        query = extract_sql_query(response)
+    else:
+        query = response.split(";")[0] + ";"
     return {"response": response, "query": query}
 
 @app.post("/dbupdate")
