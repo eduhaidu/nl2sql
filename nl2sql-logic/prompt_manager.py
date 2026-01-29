@@ -1,5 +1,6 @@
 import ollama
 import json
+from sentence_transformers import SentenceTransformer, util
 
 class PromptManager:
     def __init__(self, nl_input="", model_name='nl2sql', schema=None, database_type='sqlite'):
@@ -23,36 +24,36 @@ class PromptManager:
             "5. Handle table and column names with spaces or special characters by enclosing them in square brackets or double quotes.\n"
         )
         context_prompt += "\n" + rules_prompt
-        if self.schema:
-            context_prompt += f" The database schema is as follows: {self.format_schema_for_prompt()}"
         if self.database_type:
             db_prompt = f"The target database type is {self.database_type}. Ensure the SQL syntax is compatible with this database."
             context_prompt += "\n" + db_prompt
+        # if self.schema:
+        #     schema_prompt = "Here is the database schema information:\n" + self.format_schema_to_json()
+        #     context_prompt += "\n" + schema_prompt
         self.conversation_history.append({"role": "system", "content": context_prompt})
 
-    def format_schema_for_prompt(self):
-        if not self.schema:
-            return "No schema information available."
-        schema_str = "Database Schema:\n"
-        for table, columns in self.schema.items():
-            schema_str += f"Table: {table}\n"
-            for column in columns:
-                if isinstance(column, dict) and 'foreign_keys' in column:
-                    for fk in column['foreign_keys']:
-                        schema_str += f"  Foreign Key: {fk['column']} references {fk['references']}\n"
-                else:
-                    schema_str += f"  Column: {column['name']}, Type: {column['type']}, Nullable: {column['nullable']}, Primary Key: {column['primary_key']}\n"
-        return schema_str
+    def filter_relevant_tables(self, nl_input):
+        model = SentenceTransformer('all-MiniLM-L6-v2')
+        nl_embedding = model.encode(nl_input, convert_to_tensor=True)
+
+        relevant_tables = {}
+        for table_name, columns in self.schema.items():
+            column_names = [col['name'] for col in columns if 'name' in col]
+            table_text = table_name + ' ' + ' '.join(column_names)
+            table_embedding = model.encode(table_text, convert_to_tensor=True)
+
+            similarity = util.pytorch_cos_sim(nl_embedding, table_embedding).item()
+            if similarity > 0.3:  # Threshold can be adjusted
+                relevant_tables[table_name] = columns
+        return relevant_tables
+
+    def format_schema_to_json(self):
+        return json.dumps(self.schema, indent=4)
 
     def generate_prompt(self, nl_input):
-        prompt = f"Question: {nl_input}\nSQL:"
+        prompt = f"Question: {nl_input}\n Schema: {self.filter_relevant_tables(nl_input)}\n SQL Query:"
         return prompt
-    
-    def filter_relevant_tables(self, schema_info, nl_input):
-        #TODO: Implement relevance filtering based on nl_input
-        return schema_info
         
-
     def get_response(self, nl_input):
         self.nl_input = nl_input
         prompt = self.generate_prompt(nl_input)

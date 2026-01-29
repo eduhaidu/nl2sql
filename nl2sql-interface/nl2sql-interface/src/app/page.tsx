@@ -4,13 +4,14 @@ import ImportDB from "./importdb";
 import MessageBubble from "./MessageBubble";
 import ResultTable from "./ResultTable";
 import { useState, useEffect } from "react";
+import { error } from "console";
 
 export default function Home() {
   const [messages, setMessages] = useState<{ message: string; isUser: boolean }[]>([]);
   const [showImportDB, setShowImportDB] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [queryResult, setQueryResult] = useState<any[] | null>(null);
-  const [generatedSQL, setGeneratedSQL] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // Cleanup session on page unload
   useEffect(() => {
@@ -51,14 +52,23 @@ export default function Home() {
         });
         console.log("Response from backend:", response.data);
         const AIMessage = response.data.response;
+        const generatedQuery = response.data.query;
         setMessages(prevMessages => [...prevMessages, { message: AIMessage, isUser: false }]);
-        setGeneratedSQL(response.data.query);
+        // Return the query so we can use it immediately
+        return generatedQuery;
       } catch (error) {
         console.error("Error sending message:", error);
+        return null;
       }
     }
-    await sendMessage(nlInput);
-    await executeQuery(generatedSQL);
+    const query = await sendMessage(nlInput);
+    if (query) {
+      await executeQuery(query);
+      if (errorMessage){
+        await retryGenerateQuery(nlInput, query, errorMessage);
+        setErrorMessage(null);
+      }
+    }
     // event.currentTarget.reset();
   };
 
@@ -72,9 +82,46 @@ export default function Home() {
         query: query
       });
       console.log("Query execution result:", response.data);
-      setQueryResult(response.data.result);
+      // Check if result is an array before setting
+      if (Array.isArray(response.data.result)) {
+        setQueryResult(response.data.result);
+      } else {
+        // Handle non-array results (e.g., INSERT, UPDATE, DELETE confirmations)
+        const errorMsg = response.data.result || "Query executed successfully.";
+        setQueryResult(null);
+        setMessages(prevMessages => [...prevMessages, { 
+          message: typeof response.data.result === 'string' 
+            ? response.data.result 
+            : JSON.stringify(response.data.result), 
+          isUser: false 
+        }]);
+        return errorMsg;
+      }
     } catch (error) {
       console.error("Error executing query:", error);
+    }
+  }
+  
+  const retryGenerateQuery = async (nlInput: string, query: string, errorMsg: string) => {
+    if (!sessionId){
+      alert("Please import a database first.");
+      return;
+    }
+    try{
+      const response = await axios.post(`http://127.0.0.1:8000/retry/${sessionId}`, {
+        nl_input: nlInput,
+        query: query,
+        error_message: errorMsg
+      });
+      console.log("Retry response from backend:", response.data);
+      const AIMessage = response.data.response;
+      const newGeneratedQuery = response.data.query;
+      setMessages(prevMessages => [...prevMessages, { message: AIMessage, isUser: false }]);
+      // Execute the new query
+      await executeQuery(newGeneratedQuery);
+    }
+    catch (error) {
+      console.error("Error retrying query generation:", error);
     }
   }
 

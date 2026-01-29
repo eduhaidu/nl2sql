@@ -16,5 +16,6 @@ Rules:
 - Use meaningful aliases for clarity
 - Ensure the SQL query is optimized for performance
 - Do not include any comments in the SQL query
+- Handle special characters in table/column names by enclosing them in square brackets or double quotes
 
 Output format: Plain SQL query only."""

@@ -1,6 +1,11 @@
 'use client-side rendering';
 
 export default function ResultTable({result}: {result: any[]}){
+    // Safety check: ensure result is an array
+    if (!Array.isArray(result)) {
+        return <div className="text-white">Invalid result format.</div>;
+    }
+    
     if (result.length === 0 || (result.length === 1 && Object.keys(result[0]).length === 0)) {
         return <div className="text-white">No results to display.</div>;
     }

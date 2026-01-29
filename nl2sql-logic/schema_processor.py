@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine, MetaData
+from sentence_transformers import SentenceTransformer, util
 
 class SchemaProcessor:
     def __init__(self, db_url='sqlite:///example.db'):
@@ -27,6 +28,18 @@ class SchemaProcessor:
             if foreign_keys:
                 schema_info[table_name].append({'foreign_keys': foreign_keys})
         return schema_info
+    
+    
+    def format_schema_for_model(self, schema_info):
+        formatted_schema = ""
+        for table_name, columns in schema_info.items():
+            formatted_schema += f"Table: {table_name}\n"
+            for column in columns:
+                if 'name' in column:
+                    formatted_schema += f"  Column: {column['name']}, Type: {column['type']}, Nullable: {column['nullable']}, Primary Key: {column['primary_key']}\n"
+            formatted_schema += "\n"
+        return formatted_schema.strip()
+        
     
     def print_schema_info(self, schema_info):
         for table_name, columns in schema_info.items():

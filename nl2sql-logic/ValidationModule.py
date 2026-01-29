@@ -31,7 +31,7 @@ class Validator:
             "execution_result": execution_result
         }
     
-    def generate_retry_prompt(self, nl_input, previous_sql, error_message):
+    def generate_retry_prompt(self, nl_input, previous_sql, error_message=None):
         if(error_message):
             retry_prompt = (
                 f"The previous SQL query generated was: {previous_sql}\n"

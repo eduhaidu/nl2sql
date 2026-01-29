@@ -8,6 +8,7 @@ dependencies = [
     "fastapi[standard]>=0.121.2",
     "ollama>=0.6.1",
     "psycopg2-binary>=2.9.11",
+    "sentence-transformers>=5.2.0",
     "sqlalchemy>=2.0.44",
     "uvicorn>=0.38.0",
 ]
