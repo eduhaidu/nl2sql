@@ -119,6 +119,9 @@ def generate_retry_prompt(session_id: str, data: NLInputModel, previous_sql: str
             previous_sql=previous_sql,
             error_message=error_message
         )
-        return {"retry_prompt": retry_prompt}
+        
+        response = prompt_manager.get_response(retry_prompt)
+        new_sql_query = extract_sql_query(response)
+        return {"response": response, "query": new_sql_query}
     except Exception as e:
         return {"error": str(e)}
