@@ -49,9 +49,30 @@ class PromptManager:
 
     def format_schema_to_json(self):
         return json.dumps(self.schema, indent=4)
+    
+    def needs_escape(self, name):
+        """Check if column/table name needs escaping"""
+        import re
+        return bool(re.search(r'[\s\(\)%\-/\#@\$]', name)) or (name and name[0].isdigit())
+    
+    def format_filtered_schema(self, filtered_schema):
+        """Format filtered schema with escaped column names"""
+        formatted = ""
+        for table_name, columns in filtered_schema.items():
+            table_display = f"[{table_name}]" if self.needs_escape(table_name) else table_name
+            formatted += f"Table: {table_display}\n"
+            for column in columns:
+                if 'name' in column:
+                    col_name = column['name']
+                    col_display = f"[{col_name}]" if self.needs_escape(col_name) else col_name
+                    formatted += f"  Column: {col_display}, Type: {column.get('type', 'UNKNOWN')}\n"
+            formatted += "\n"
+        return formatted.strip()
 
     def generate_prompt(self, nl_input):
-        prompt = f"Question: {nl_input}\n Schema: {self.filter_relevant_tables(nl_input)}\n SQL Query:"
+        filtered_tables = self.filter_relevant_tables(nl_input)
+        formatted_schema = self.format_filtered_schema(filtered_tables)
+        prompt = f"Question: {nl_input}\n\nSchema (columns in [brackets] require quoting in SQL):\n{formatted_schema}\n\nGenerate the SQL query that answers the question based on the provided schema."
         return prompt
         
     def get_response(self, nl_input):

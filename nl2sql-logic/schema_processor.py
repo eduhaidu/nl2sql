@@ -1,5 +1,4 @@
 from sqlalchemy import create_engine, MetaData
-from sentence_transformers import SentenceTransformer, util
 
 class SchemaProcessor:
     def __init__(self, db_url='sqlite:///example.db'):
@@ -29,14 +28,25 @@ class SchemaProcessor:
                 schema_info[table_name].append({'foreign_keys': foreign_keys})
         return schema_info
     
+    def needs_escape(self, name):
+        import re
+        return bool(re.search(r'[\s\(\)%\-/\#@\$]', name)) or name[0].isdigit()
     
     def format_schema_for_model(self, schema_info):
         formatted_schema = ""
         for table_name, columns in schema_info.items():
-            formatted_schema += f"Table: {table_name}\n"
+            if(self.needs_escape(table_name)):
+                formatted_schema += f"Table: [{table_name}]\n"
+            else:
+                formatted_schema += f"Table: {table_name}\n"
             for column in columns:
                 if 'name' in column:
-                    formatted_schema += f"  Column: {column['name']}, Type: {column['type']}, Nullable: {column['nullable']}, Primary Key: {column['primary_key']}\n"
+                    col_name = column['name']
+                    if(self.needs_escape(col_name)):
+                        display_name = f"[{col_name}]"
+                    else:
+                        display_name = col_name
+                    formatted_schema += f"  Column: {display_name}, Type: {column['type']}, Nullable: {column['nullable']}, Primary Key: {column['primary_key']}\n"
             formatted_schema += "\n"
         return formatted_schema.strip()
         
@@ -45,7 +55,12 @@ class SchemaProcessor:
         for table_name, columns in schema_info.items():
             print(f"Table: {table_name}")
             for column in columns:
-                print(f"  Column: {column['name']}, Type: {column['type']}, Nullable: {column['nullable']}, Primary Key: {column['primary_key']}")
+                col_name = column['name']
+                if(self.needs_escape(col_name)):
+                    display_name = f"[{col_name}]"
+                else:
+                    display_name = col_name
+                print(f"  Column: {display_name}, Type: {column['type']}, Nullable: {column['nullable']}, Primary Key: {column['primary_key']}")
             print()
 
     def get_schema_keys(self):
@@ -58,7 +73,15 @@ class SchemaProcessor:
                 json.dump(schema_info, f, indent=4)
             else:
                 for table_name, columns in schema_info.items():
-                    f.write(f"Table: {table_name}\n")
+                    if(self.needs_escape(table_name)):
+                        f.write(f"Table: [{table_name}]\n")
+                    else:
+                        f.write(f"Table: {table_name}\n")
                     for column in columns:
-                        f.write(f"  Column: {column['name']}, Type: {column['type']}, Nullable: {column['nullable']}, Primary Key: {column['primary_key']}\n")
+                        col_name = column['name']
+                        if(self.needs_escape(col_name)):
+                            display_name = f"[{col_name}]"
+                        else:
+                            display_name = col_name
+                        f.write(f"  Column: {display_name}, Type: {column['type']}, Nullable: {column['nullable']}, Primary Key: {column['primary_key']}\n")
                     f.write("\n")

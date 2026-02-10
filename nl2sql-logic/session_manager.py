@@ -13,8 +13,9 @@ class SessionManager:
 
         schema_processor = SchemaProcessor(db_url)
         schema_info = schema_processor.process_schema()
+        formatted_schema = schema_processor.format_schema_for_model(schema_info)
 
-        prompt_manager = PromptManager(schema=schema_info)
+        prompt_manager = PromptManager(schema=formatted_schema)
 
         sqlalchemy_session = SQLAlchemySession(db_url)
 

@@ -1,6 +1,7 @@
 from prompt_manager import PromptManager
 from schema_processor import SchemaProcessor
 from SQLAlchemySession import SQLAlchemySession
+from QueryExtractor import extract_sql_query
 
 class Validator:
     def __init__(self, sqlalchemy_session=None, prompt_manager=None, schema_processor=None):
@@ -22,7 +23,7 @@ class Validator:
         
     def validate_response(self, nl_input):
         schema_info = self.schema_processor.process_schema()
-        filtered_schema = self.prompt_manager.filter_schema(schema_info)
+        filtered_schema = self.prompt_manager.filter_relevant_tables(nl_input)
         self.prompt_manager.schema = filtered_schema
         sql_query = self.prompt_manager.get_response(nl_input)
         execution_result = self.send_query_for_execution(sql_query)
