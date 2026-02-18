@@ -8,14 +8,13 @@ class SessionManager:
     def __init__(self):
         self.sessions: Dict[str, Dict] = {}
 
-    def create_session(self, db_url: str) -> str:
+    def create_session(self, db_url: str, database_type: str = None) -> str:
         session_id = str(uuid.uuid4())
 
         schema_processor = SchemaProcessor(db_url)
         schema_info = schema_processor.process_schema()
-        formatted_schema = schema_processor.format_schema_for_model(schema_info)
 
-        prompt_manager = PromptManager(schema=formatted_schema)
+        prompt_manager = PromptManager(schema=schema_info, database_type=database_type)
 
         sqlalchemy_session = SQLAlchemySession(db_url)
 

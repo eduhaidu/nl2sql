@@ -29,7 +29,8 @@ export default function ImportDB({ setSessionId, currentSessionId }: ImportDBPro
                 
                 // Create new session
                 const response = await axios.post("http://127.0.0.1:8000/dbupdate", { 
-                    database_url: databaseUrl 
+                    database_url: databaseUrl,
+                    database_type: dbType
                 });
                 const sessionId = response.data.session_id;
                 console.log("Response from backend:", response.data);

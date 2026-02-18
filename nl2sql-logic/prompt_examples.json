@@ -1,20 +1,122 @@
-[{
-    "schema": "Table: employees\nColumns: id, name, department, salary",
-    "question": "Show all employees earning more than 50000",
-    "sql": "SELECT * FROM employees WHERE salary > 50000"
-},
-{
-    "schema": "Table: products\nColumns: id, name, price, stock",
-    "question": "List the names of products that are out of stock",
-    "sql": "SELECT name FROM products WHERE stock = 0"
-},
-{
-    "schema": "Tables: employees (id, name, dept_id), departments (id, name)",
-    "question": "List employee names with their department names",
-    "sql": "SELECT e.name, d.name FROM employees e JOIN departments d ON e.dept_id = d.id"
-},
-{
-    "schema": "Table: orders\nColumns: id, customer_id, total, order_date",
-    "question": "Count orders per month in 2024",
-    "sql": "SELECT strftime('%Y-%m', order_date) as month, COUNT(*) FROM orders WHERE strftime('%Y', order_date) = '2024' GROUP BY month"
-}]
+[
+  {
+    "source": "BIRD",
+    "db_id": "toxicology",
+    "schema": "Tables: atom(atom_id, element)",
+    "question": "What is the element of toxicology for the atom with the ID of TR000_1?",
+    "sql": "SELECT T.element FROM atom AS T WHERE T.atom_id = 'TR000_1'",
+    "difficulty": "challenging"
+  },
+  {
+    "source": "BIRD",
+    "db_id": "california_schools",
+    "schema": "Tables: frpm(CDSCode), schools(AdmEmail1, CDSCode)",
+    "question": "What is the administrator's email address of the chartered school with the fewest students enrolled in grades 1 through 12?",
+    "sql": "SELECT T2.AdmEmail1 FROM frpm AS T1 INNER JOIN schools AS T2 ON T1.CDSCode = T2.CDSCode WHERE T1.`Charter School (Y/N)` = 1 ORDER BY T1.`Enrollment (K-12)` ASC LIMIT 1",
+    "difficulty": "moderate"
+  },
+  {
+    "source": "BIRD",
+    "db_id": "financial",
+    "schema": "Tables: trans(account_id, amount, k_symbol), account(account_id), disp(account_id, client_id), client(birth_date, client_id, gender)",
+    "question": "How many male customers who were born between 1974 and 1976 have made a payment on their home in excess of $4000?",
+    "sql": "SELECT COUNT(T1.account_id) FROM trans AS T1 INNER JOIN account AS T2 ON T1.account_id = T2.account_id INNER JOIN disp AS T4 ON T2.account_id = T4.account_id INNER JOIN client AS T3 ON T4.client_id = T3.client_id WHERE STRFTIME('%Y', T3.birth_date) BETWEEN '1974' AND '1976' AND T3.gender = 'M' AND T1.amount > 4000 AND T1.k_symbol = 'SIPO'",
+    "difficulty": "moderate"
+  },
+  {
+    "source": "BIRD",
+    "db_id": "toxicology",
+    "schema": "Tables: atom(element, molecule_id), molecule(label, molecule_id)",
+    "question": "Which type of label is the most numerous in atoms with hydrogen?",
+    "sql": "SELECT T.label FROM ( SELECT T2.label, COUNT(T2.molecule_id) FROM atom AS T1 INNER JOIN molecule AS T2 ON T1.molecule_id = T2.molecule_id WHERE T1.element = 'h' GROUP BY T2.label ORDER BY COUNT(T2.molecule_id) DESC LIMIT 1 ) t",
+    "difficulty": "moderate"
+  },
+  {
+    "source": "BIRD",
+    "db_id": "financial",
+    "schema": "Tables: account(account_id, frequency), disp(account_id, type)",
+    "question": "How many accounts have an owner disposition and request for a statement to be generated upon a transaction?",
+    "sql": "SELECT COUNT(T1.account_id) FROM account AS T1 INNER JOIN disp AS T2 ON T1.account_id = T2.account_id WHERE T2.type = 'OWNER' AND T1.frequency = 'POPLATEK PO OBRATU'",
+    "difficulty": "moderate"
+  },
+  {
+    "source": "BIRD",
+    "db_id": "california_schools",
+    "schema": "Tables: schools(AdmFName1, AdmLName1, CDSCode), frpm(CDSCode)",
+    "question": "What is the free rate for students between the ages of 5 and 17 at the school run by Kacey Gibson?",
+    "sql": "SELECT CAST(T2.`Free Meal Count (Ages 5-17)` AS REAL) / T2.`Enrollment (Ages 5-17)` FROM schools AS T1 INNER JOIN frpm AS T2 ON T1.CDSCode = T2.CDSCode WHERE T1.AdmFName1 = 'Kacey' AND T1.AdmLName1 = 'Gibson'",
+    "difficulty": "moderate"
+  },
+  {
+    "source": "BIRD",
+    "db_id": "california_schools",
+    "schema": "Schema: schools",
+    "question": "Which different county has the most number of closed schools? Please provide the name of each school as well as the closure date.",
+    "sql": "SELECT DISTINCT County, School, ClosedDate FROM schools WHERE County = ( SELECT County FROM schools WHERE StatusType = 'Closed' GROUP BY County ORDER BY COUNT(School) DESC LIMIT 1 ) AND StatusType = 'Closed' AND school IS NOT NULL",
+    "difficulty": "moderate"
+  },
+  {
+    "source": "BIRD",
+    "db_id": "california_schools",
+    "schema": "Tables: satscores(NumTstTakr, cds), schools(CDSCode, Magnet, School)",
+    "question": "Among the schools with the SAT test takers of over 500, please list the schools that are magnet schools or offer a magnet program.",
+    "sql": "SELECT T2.School FROM satscores AS T1 INNER JOIN schools AS T2 ON T1.cds = T2.CDSCode WHERE T2.Magnet = 1 AND T1.NumTstTakr > 500",
+    "difficulty": "simple"
+  },
+  {
+    "source": "BIRD",
+    "db_id": "financial",
+    "schema": "Tables: account(account_id, date, district_id), district(A2, district_id)",
+    "question": "List account ID and account opening date for accounts from 'Prachatice'.",
+    "sql": "SELECT T1.account_id, T1.date FROM account AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id WHERE T2.A2 = 'Prachatice'",
+    "difficulty": "simple"
+  },
+  {
+    "source": "BIRD",
+    "db_id": "financial",
+    "schema": "Tables: loan(account_id, amount, date), account(account_id), disp(account_id, client_id, type), client(client_id, gender)",
+    "question": "What was the growth rate of the total amount of loans across all accounts for a male client between 1996 and 1997?",
+    "sql": "SELECT CAST((SUM(CASE WHEN STRFTIME('%Y', T1.date) = '1997' THEN T1.amount ELSE 0 END) - SUM(CASE WHEN STRFTIME('%Y', T1.date) = '1996' THEN T1.amount ELSE 0 END)) AS REAL) * 100 / SUM(CASE WHEN STRFTIME('%Y', T1.date) = '1996' THEN T1.amount ELSE 0 END) FROM loan AS T1 INNER JOIN account AS T2 ON T1.account_id = T2.account_id INNER JOIN disp AS T3 ON T3.account_id = T2.account_id INNER JOIN client AS T4 ON T4.client_id = T3.client_id WHERE T4.gender = 'M' AND T3.type = 'OWNER'",
+    "difficulty": "challenging"
+  },
+  {
+    "source": "BIRD",
+    "db_id": "financial",
+    "schema": "Tables: trans(account_id, k_symbol), account(account_id, district_id), district(A2, district_id)",
+    "question": "Which accounts placed orders for household payment in Pisek?",
+    "sql": "SELECT DISTINCT T2.account_id FROM trans AS T1 INNER JOIN account AS T2 ON T1.account_id = T2.account_id INNER JOIN district AS T3 ON T2.district_id = T3.district_id WHERE T1.k_symbol = 'SIPO' AND T3.A2 = 'Pisek'",
+    "difficulty": "simple"
+  },
+  {
+    "source": "BIRD",
+    "db_id": "california_schools",
+    "schema": "Tables: frpm(CDSCode), schools(CDSCode, City, EdOpsCode)",
+    "question": "How many students from the ages of 5 to 17 are enrolled at the State Special School school in Fremont for the 2014-2015 academic year?",
+    "sql": "SELECT T1.`Enrollment (Ages 5-17)` FROM frpm AS T1 INNER JOIN schools AS T2 ON T1.CDSCode = T2.CDSCode WHERE T2.EdOpsCode = 'SSS' AND T2.City = 'Fremont' AND T1.`Academic Year` BETWEEN 2014 AND 2015",
+    "difficulty": "moderate"
+  },
+  {
+    "source": "BIRD",
+    "db_id": "california_schools",
+    "schema": "Tables: frpm(CDSCode), schools(CDSCode, City)",
+    "question": "Which cities have the top 5 lowest enrollment number for students in grades 1 through 12?",
+    "sql": "SELECT T2.City FROM frpm AS T1 INNER JOIN schools AS T2 ON T1.CDSCode = T2.CDSCode GROUP BY T2.City ORDER BY SUM(T1.`Enrollment (K-12)`) ASC LIMIT 5",
+    "difficulty": "simple"
+  },
+  {
+    "source": "BIRD",
+    "db_id": "toxicology",
+    "schema": "Tables: atom(atom_id, element), connected(atom_id, bond_id), bond(bond_id)",
+    "question": "Name chemical elements that form a bond TR001_10_11.",
+    "sql": "SELECT T1.element FROM atom AS T1 INNER JOIN connected AS T2 ON T1.atom_id = T2.atom_id INNER JOIN bond AS T3 ON T2.bond_id = T3.bond_id WHERE T3.bond_id = 'TR001_10_11'",
+    "difficulty": "challenging"
+  },
+  {
+    "source": "BIRD",
+    "db_id": "financial",
+    "schema": "Tables: district(A2, district_id), account(account_id, date, district_id)",
+    "question": "How many accounts were opened in Litomerice in 1996?",
+    "sql": "SELECT COUNT(T2.account_id) FROM district AS T1 INNER JOIN account AS T2 ON T1.district_id = T2.district_id WHERE STRFTIME('%Y', T2.date) = '1996' AND T1.A2 = 'Litomerice'",
+    "difficulty": "simple"
+  }
+]

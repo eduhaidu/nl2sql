@@ -12,6 +12,7 @@ class PromptManager:
         self.examples = json.loads(open('prompt_examples.json').read())
         self.conversation_history = []
         self._initialize_context()
+        self.initialize_sentence_transformer()
 
     def _initialize_context(self):
         context_prompt = "You are an SQL expert that translates natural language to SQL queries."
@@ -30,10 +31,19 @@ class PromptManager:
         # if self.schema:
         #     schema_prompt = "Here is the database schema information:\n" + self.format_schema_to_json()
         #     context_prompt += "\n" + schema_prompt
-        self.conversation_history.append({"role": "system", "content": context_prompt})
+        self.system_prompt = {"role": "system", "content": context_prompt}
+        self.conversation_history.append(self.system_prompt)
+
+    def initialize_sentence_transformer(self):
+        """Initialize the sentence transformer model for semantic search"""
+        self.model = SentenceTransformer('all-MiniLM-L6-v2')
 
     def filter_relevant_tables(self, nl_input):
-        model = SentenceTransformer('all-MiniLM-L6-v2')
+        # Safety check: ensure schema is a dictionary
+        if not isinstance(self.schema, dict) or not self.schema:
+            return {}
+            
+        model = self.model if hasattr(self, 'model') else SentenceTransformer('all-MiniLM-L6-v2')
         nl_embedding = model.encode(nl_input, convert_to_tensor=True)
 
         relevant_tables = {}
@@ -46,7 +56,22 @@ class PromptManager:
             if similarity > 0.3:  # Threshold can be adjusted
                 relevant_tables[table_name] = columns
         return relevant_tables
+    
+    def select_relevant_examples(self, nl_input, example_count=2):
+        model = self.model if hasattr(self, 'model') else SentenceTransformer('all-MiniLM-L6-v2')
+        nl_embedding = model.encode(nl_input, convert_to_tensor=True)
 
+        example_similarities = []
+        for example in self.examples:
+            example_text = example['question'] + ' ' + example['sql']
+            example_embedding = model.encode(example_text, convert_to_tensor=True)
+            similarity = util.pytorch_cos_sim(nl_embedding, example_embedding).item()
+            example_similarities.append((similarity, example))
+
+        example_similarities.sort(key=lambda x: x[0], reverse=True)
+        selected_examples = [ex for _, ex in example_similarities[:example_count]]
+        return selected_examples
+    
     def format_schema_to_json(self):
         return json.dumps(self.schema, indent=4)
     
@@ -70,14 +95,30 @@ class PromptManager:
         return formatted.strip()
 
     def generate_prompt(self, nl_input):
-        filtered_tables = self.filter_relevant_tables(nl_input)
-        formatted_schema = self.format_filtered_schema(filtered_tables)
+        filtered_schema = self.filter_relevant_tables(nl_input)
+        formatted_schema = self.format_filtered_schema(filtered_schema)
         prompt = f"Question: {nl_input}\n\nSchema (columns in [brackets] require quoting in SQL):\n{formatted_schema}\n\nGenerate the SQL query that answers the question based on the provided schema."
+        examples = self.select_relevant_examples(nl_input)
+        if examples:
+            prompt += "\n\nExamples:\n"
+            for example in examples:
+                prompt += f"Example: {example['question']}\nSQL: {example['sql']}\n\n"
         return prompt
+        
+    def trim_conversation_history(self):
+        """Keep only system prompt + last N Q&A turns to prevent context overflow"""
+        if len(self.conversation_history) > (1 + self.max_history_turns * 2):
+            # Keep system prompt (index 0) + last N user/assistant pairs
+            self.conversation_history = [self.system_prompt] + self.conversation_history[-(self.max_history_turns * 2):]
+    
+    def reset_conversation(self):
+        """Reset conversation history to just the system prompt"""
+        self.conversation_history = [self.system_prompt]
         
     def get_response(self, nl_input):
         self.nl_input = nl_input
         prompt = self.generate_prompt(nl_input)
+        
         self.conversation_history.append({"role": "user", "content": prompt})
 
         response = self.client.chat(
