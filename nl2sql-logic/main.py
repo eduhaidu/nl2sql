@@ -6,6 +6,8 @@ from QueryModel import QueryModel
 from session_manager import SessionManager
 from QueryExtractor import extract_sql_query
 from ValidationModule import Validator
+from conversation_controller import create_conversation, get_conversations, get_conversation_history, add_message_to_conversation, get_conversation_details
+from result_storage import ResultStorage
 app = FastAPI()
 
 # CORS configuration - allow both localhost and 127.0.0.1
@@ -48,20 +50,83 @@ def process_nl_input(data: NLInputModel):
     prompt_manager = session["prompt_manager"]
     response = prompt_manager.get_response(data.nl_input)
     query = extract_sql_query(response)
+    add_message_to_conversation(session["conversation_id"], data.nl_input, "user")
+    add_message_to_conversation(session["conversation_id"], response, "assistant")
     return {"response": response, "query": query}
 
-@app.post("/dbupdate")
+@app.post("/dbimport")
 def update_database_url(data: DBURLInputModel):
     if not data.database_url:
         return {"error": "Database URL is required."}
     
     try:
+        # Create a new conversation for this database connection
+        conversation_id = create_conversation(data.database_url, data.database_type)
+        print(f"New conversation created with ID: {conversation_id}")
         # Create a new session
-        session_id = session_manager.create_session(data.database_url)
-        return {"message": "Database URL updated and session created.", "session_id": session_id}
+        session_id = session_manager.create_session(data.database_url, database_type=data.database_type, conversation_id=conversation_id)
+        return {"message": "Database URL updated and session created.", "session_id": session_id, "conversation_id": conversation_id}
     except ValueError as e:
         return {"error": str(e)}
     
+@app.get("/conversations")
+def list_conversations():
+    conversations = get_conversations()
+    if conversations is None:
+        return {"error": "Failed to retrieve conversations."}
+    return {"conversations": conversations}
+
+@app.get("/conversations/{conversation_id}")
+def conversation_history(conversation_id: str):
+    history = get_conversation_history(conversation_id)
+    if history is None:
+        return {"error": "Failed to retrieve conversation history."}
+    
+    # Get conversation details (including db_url)
+    conversation = get_conversation_details(conversation_id)
+    if not conversation:
+        return {"error": "Conversation not found."}
+    
+    # Find or create the session_id for this conversation_id
+    session_id = None
+    for sid, session in session_manager.sessions.items():
+        if session.get("conversation_id") == conversation_id:
+            session_id = sid
+            break
+    
+    # If no session exists, recreate it from the stored db_url
+    if not session_id:
+        print(f"No session found for conversation {conversation_id}, recreating...")
+        session_id = session_manager.create_session(
+            conversation["db_url"],
+            database_type=conversation.get("database_type"),
+            conversation_id=conversation_id
+        )
+        print(f"Session recreated with ID: {session_id}")
+    
+    # Always sync conversation history from PostgreSQL to PromptManager
+    session = session_manager.get_session(session_id)
+    if session and history:
+        session["prompt_manager"].load_conversation_history(history)
+        print(f"Synced {len(history)} messages to PromptManager for conversation {conversation_id}")
+    
+    # Format history as messages with user_message and assistant_response
+    messages = []
+    for i in range(0, len(history), 2):
+        msg_dict = {}
+        if i < len(history) and history[i][1] == "user":
+            msg_dict["user_message"] = history[i][0]
+        if i + 1 < len(history) and history[i + 1][1] == "assistant":
+            msg_dict["assistant_response"] = history[i + 1][0]
+        if msg_dict:
+            messages.append(msg_dict)
+    
+    return {
+        "conversation_id": conversation_id,
+        "session_id": session_id,
+        "messages": messages
+    }
+
 @app.post("/executesql/{session_id}")
 def execute_sql_query(session_id: str, query: QueryModel):
     session = session_manager.get_session(session_id)
@@ -71,6 +136,9 @@ def execute_sql_query(session_id: str, query: QueryModel):
     try:
         sqlalchemy_session = session["sqlalchemy_session"]
         result = sqlalchemy_session.execute_query(query)
+        # Store the result in the database
+        result_storage = ResultStorage()
+        result_storage.save_query_execution(session["conversation_id"], query.query, result)
         return {"result": result}
     except Exception as e:
         return {"error": str(e)}
@@ -122,6 +190,8 @@ def generate_retry_prompt(session_id: str, data: NLInputModel, previous_sql: str
         
         response = prompt_manager.get_response(retry_prompt)
         new_sql_query = extract_sql_query(response)
+        add_message_to_conversation(session["conversation_id"], retry_prompt, "user")
+        add_message_to_conversation(session["conversation_id"], response, "assistant")
         return {"response": response, "query": new_sql_query}
     except Exception as e:
         return {"error": str(e)}

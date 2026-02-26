@@ -11,6 +11,7 @@ class PromptManager:
         self.client = ollama.Client()
         self.examples = json.loads(open('prompt_examples.json').read())
         self.conversation_history = []
+        self.max_history_turns = 3  # Keep last 3 Q&A pairs
         self._initialize_context()
         self.initialize_sentence_transformer()
 
@@ -114,6 +115,18 @@ class PromptManager:
     def reset_conversation(self):
         """Reset conversation history to just the system prompt"""
         self.conversation_history = [self.system_prompt]
+    
+    def load_conversation_history(self, history_tuples):
+        """Load conversation history from PostgreSQL format [(message, sender, timestamp), ...]"""
+        self.conversation_history = [self.system_prompt]  # Reset to system prompt
+        
+        for message, sender, timestamp in history_tuples:
+            role = "user" if sender == "user" else "assistant"
+            self.conversation_history.append({"role": role, "content": message})
+        
+        # Trim if needed
+        self.trim_conversation_history()
+        print(f"Loaded {len(history_tuples)} messages into conversation history")
         
     def get_response(self, nl_input):
         self.nl_input = nl_input
