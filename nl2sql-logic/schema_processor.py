@@ -1,10 +1,12 @@
 from sqlalchemy import create_engine, MetaData
+from description_heuristics import DescriptionHeuristics
 
 class SchemaProcessor:
     def __init__(self, db_url='sqlite:///example.db'):
         self.engine = create_engine(db_url)
         self.metadata = MetaData()
         self.metadata.reflect(bind=self.engine)
+        self.description_heuristics = DescriptionHeuristics()
     
     def process_schema(self):
         schema_info = {}
@@ -26,7 +28,8 @@ class SchemaProcessor:
                 })
             if foreign_keys:
                 schema_info[table_name].append({'foreign_keys': foreign_keys})
-        return schema_info
+        enriched_schema = self.description_heuristics.enrich_schema_with_descriptions(schema_info)
+        return enriched_schema
     
     def needs_escape(self, name):
         import re

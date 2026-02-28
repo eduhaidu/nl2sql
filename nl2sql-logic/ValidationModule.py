@@ -34,18 +34,26 @@ class Validator:
     
     def generate_retry_prompt(self, nl_input, previous_sql, error_message=None):
         if(error_message):
-            retry_prompt = (
-                f"The previous SQL query generated was: {previous_sql}\n"
-                f"However, it resulted in the following error when executed: {error_message}\n"
-                f"Please generate a corrected SQL query for the following natural language input: {nl_input}"
+            retry_context = (
+                f"PREVIOUS ATTEMPT:\n"
+                f"SQL: {previous_sql}\n"
+                f"Error: {error_message}\n"
+                f"The query failed. Please fix it by:\n"
+                f"1. Checking that all table and column names exist in the schema\n"
+                f"2. Using proper quoting for names with spaces or special characters\n"
+                f"3. Ensuring the SQL syntax is correct\n"
+                f"ORIGINAL QUESTION: {nl_input}\n"
+                f"Please generate a corrected SQL query for the above natural language input."
             )
         else:
-            retry_prompt = (
-                f"The previous SQL query generated was: {previous_sql}\n"
-                f"However, it did not return the expected results.\n"
-                f"Please generate a corrected SQL query for the following natural language input: {nl_input}"
+            retry_context = (
+                f"PREVIOUS ATTEMPT:\n"
+                f"SQL: {previous_sql}\n"
+                f"The query did not return the expected results. Please review the original question and the previous SQL query, and generate a revised SQL query that better captures the intent of the natural language input.\n"
+                f"ORIGINAL QUESTION: {nl_input}\n"
+                f"Please generate a revised SQL query for the above natural language input."
             )
-        return retry_prompt
+        return {retry_context: retry_context, "original_question": nl_input}
     
     def print_validation(self, nl_input):
         validation_result = self.validate_response(nl_input)

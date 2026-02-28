@@ -182,16 +182,26 @@ def generate_retry_prompt(session_id: str, data: NLInputModel, previous_sql: str
             schema_processor=schema_processor
         )
         
-        retry_prompt = validator.generate_retry_prompt(
+        retry_data = validator.generate_retry_prompt(
             nl_input=data.nl_input,
             previous_sql=previous_sql,
             error_message=error_message
         )
+
+        prompt_manager.nl_input = retry_data["original_question"]  # Set the original question as the NL input for context
         
-        response = prompt_manager.get_response(retry_prompt)
-        new_sql_query = extract_sql_query(response)
-        add_message_to_conversation(session["conversation_id"], retry_prompt, "user")
-        add_message_to_conversation(session["conversation_id"], response, "assistant")
+        full_prompt = prompt_manager.get_response(retry_data["original_question"])
+        full_prompt = retry_data["original_question"] + "\n\n" + full_prompt
+        
+        prompt_manager.conversation_history.append({"role": "user", "content": full_prompt})
+
+        response = prompt_manager.client.chat(
+            model=prompt_manager.model_name,
+            message=prompt_manager.conversation_history
+        )
+
+        prompt_manager.conversation_history.append({"role": "assistant", "content": response.message["content"]})
+        new_sql_query = extract_sql_query(response.message["content"])
         return {"response": response, "query": new_sql_query}
     except Exception as e:
         return {"error": str(e)}

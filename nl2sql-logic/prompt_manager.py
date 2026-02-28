@@ -48,14 +48,33 @@ class PromptManager:
         nl_embedding = model.encode(nl_input, convert_to_tensor=True)
 
         relevant_tables = {}
-        for table_name, columns in self.schema.items():
+        for table_name, table_data in self.schema.items():
+            # Handle new schema structure: {'description': ..., 'columns': [...]}
+            if isinstance(table_data, dict) and 'columns' in table_data:
+                columns = table_data['columns']
+                table_description = table_data.get('description', '')
+            else:
+                # Handle old schema structure: [columns_list]
+                columns = table_data
+                table_description = ''
+            
             column_names = [col['name'] for col in columns if 'name' in col]
             table_text = table_name + ' ' + ' '.join(column_names)
+            
+            # Add table description to semantic search
+            if table_description:
+                table_text += ' ' + table_description
+            
+            # Add column descriptions to semantic search
+            for col in columns:
+                if 'name' in col and 'description' in col:
+                    table_text += ' ' + col['description']
+            
             table_embedding = model.encode(table_text, convert_to_tensor=True)
 
             similarity = util.pytorch_cos_sim(nl_embedding, table_embedding).item()
             if similarity > 0.3:  # Threshold can be adjusted
-                relevant_tables[table_name] = columns
+                relevant_tables[table_name] = table_data
         return relevant_tables
     
     def select_relevant_examples(self, nl_input, example_count=2):
@@ -82,16 +101,35 @@ class PromptManager:
         return bool(re.search(r'[\s\(\)%\-/\#@\$]', name)) or (name and name[0].isdigit())
     
     def format_filtered_schema(self, filtered_schema):
-        """Format filtered schema with escaped column names"""
+        """Format filtered schema with escaped column names and descriptions"""
         formatted = ""
-        for table_name, columns in filtered_schema.items():
+        for table_name, table_data in filtered_schema.items():
             table_display = f"[{table_name}]" if self.needs_escape(table_name) else table_name
-            formatted += f"Table: {table_display}\n"
+            
+            # Handle new schema structure: {'description': ..., 'columns': [...]}
+            if isinstance(table_data, dict) and 'columns' in table_data:
+                columns = table_data['columns']
+                table_description = table_data.get('description', '')
+                if table_description:
+                    formatted += f"Table: {table_display} - {table_description}\n"
+                else:
+                    formatted += f"Table: {table_display}\n"
+            else:
+                # Handle old schema structure: [columns_list]
+                columns = table_data
+                formatted += f"Table: {table_display}\n"
+            
             for column in columns:
                 if 'name' in column:
                     col_name = column['name']
                     col_display = f"[{col_name}]" if self.needs_escape(col_name) else col_name
-                    formatted += f"  Column: {col_display}, Type: {column.get('type', 'UNKNOWN')}\n"
+                    col_type = column.get('type', 'UNKNOWN')
+                    col_desc = column.get('description', '')
+                    
+                    if col_desc:
+                        formatted += f"  Column: {col_display}, Type: {col_type} - {col_desc}\n"
+                    else:
+                        formatted += f"  Column: {col_display}, Type: {col_type}\n"
             formatted += "\n"
         return formatted.strip()
 
