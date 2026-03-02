@@ -3,6 +3,7 @@
 
 -- Add the new columns
 ALTER TABLE conversations 
+ADD COLUMN IF NOT EXISTS name TEXT,
 ADD COLUMN IF NOT EXISTS db_url TEXT,
 ADD COLUMN IF NOT EXISTS database_type VARCHAR(50);
 

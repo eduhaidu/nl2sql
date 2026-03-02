@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 
 interface Conversation {
   id: string;
+  name: string | null;
   created_at: string;
 }
 
@@ -15,6 +16,7 @@ interface SidebarProps {
 export default function Sidebar({ onNewChat }: SidebarProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showEditOptions, setShowEditOptions] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -23,7 +25,8 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
       const response = await axios.get('http://127.0.0.1:8000/conversations');
       setConversations(response.data.conversations.map((conv: any) => ({
         id: conv[0],
-        created_at: conv[1]
+        name: conv[1],
+        created_at: conv[2]
       })));
     } catch (error) {
       console.error('Error fetching conversations:', error);
@@ -31,6 +34,38 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
       setLoading(false);
     }
   };
+
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (!confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
+      return;
+    }
+    try{
+      await axios.delete(`http://127.0.0.1:8000/conversations/${conversationId}`);
+      fetchConversations();
+      // If the deleted conversation is currently open, navigate back to home
+      if (pathname === `/conversations/${conversationId}`) {
+        router.push('/');
+      }
+    }
+    catch(error){
+      console.error('Error deleting conversation:', error);
+      alert('Failed to delete conversation. Please try again.');
+    }
+  }
+
+  const handleRenameConversation = async (conversationId: string) => {
+    const newName = prompt('Enter a new name for this conversation:');
+    if (!newName) {
+      return;
+    }
+    try {
+      await axios.put(`http://127.0.0.1:8000/conversations/${conversationId}`, { name: newName });
+      fetchConversations();
+    } catch (error) {
+      console.error('Error renaming conversation:', error);
+      alert('Failed to rename conversation. Please try again.');
+    }
+  }
 
   useEffect(() => {
     fetchConversations();
@@ -82,24 +117,49 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
         ) : (
           <div className="space-y-1">
             {conversations.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => router.push(`/conversations/${conv.id}`)}
-                className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                  currentConversationId === conv.id
-                    ? 'bg-gray-800 text-white'
-                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm truncate flex-1">
-                    Conversation
-                  </span>
+              <div key={conv.id}>
+                <div className="flex items-start gap-1">
+                  <button
+                    onClick={() => router.push(`/conversations/${conv.id}`)}
+                    className={`flex-1 text-left px-3 py-2 rounded-lg transition-colors ${
+                      currentConversationId === conv.id
+                        ? 'bg-gray-800 text-white'
+                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                    }`}
+                  >
+                    <div className="text-sm truncate">
+                      {conv.name ? conv.name : `Conversation ${conv.id.substring(0, 8)}`}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {formatDate(conv.created_at)}
+                    </div>
+                  </button>
+                  <button 
+                    onClick={(e)=>{e.stopPropagation(); setShowEditOptions(showEditOptions === conv.id ? null : conv.id)}} 
+                    className={`px-2 py-2 text-gray-500 hover:text-white rounded-lg transition-colors ${
+                      showEditOptions === conv.id ? 'bg-gray-800' : 'hover:bg-gray-800'
+                    }`}
+                  >
+                    ⋮ 
+                  </button>
                 </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {formatDate(conv.created_at)}
-                </div>
-              </button>
+                {showEditOptions === conv.id && (
+                  <div className="ml-4 mt-1 flex gap-2 pb-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleRenameConversation(conv.id); setShowEditOptions(null); }}
+                      className="text-xs text-gray-400 hover:text-white transition-colors"
+                    >
+                      Rename
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id); setShowEditOptions(null); }}
+                      className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}

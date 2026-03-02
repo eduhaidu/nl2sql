@@ -37,11 +37,11 @@ def get_conversations():
         return None
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, created_at FROM conversations ORDER BY created_at DESC;")
+        cursor.execute("SELECT id, name, created_at FROM conversations ORDER BY created_at DESC;")
         conversations = cursor.fetchall()
         print("Conversations:")
-        for conv_id, created_at in conversations:
-            print(f"ID: {conv_id}, Created At: {created_at}")
+        for conv_id, conv_name, created_at in conversations:
+            print(f"ID: {conv_id}, Name: {conv_name}, Created At: {created_at}")
         return conversations
     except Exception as e:
         print(f"Error retrieving conversations: {e}")
@@ -111,6 +111,43 @@ def get_conversation_details(conversation_id):
     except Exception as e:
         print(f"Error retrieving conversation details: {e}")
         return None
+    finally:
+        conn.close()
+
+def rename_conversation(conversation_id, new_name):
+    # Optional: Add a name column to conversations table and implement renaming functionality
+    conn = get_connection()
+    if not conn:
+        print("Failed to connect to the database.")
+        return False
+    try:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE conversations SET name = %s WHERE id = %s;", (new_name, conversation_id))
+        conn.commit()
+        print(f"Conversation ID {conversation_id} renamed to {new_name}.")
+        return True
+    except Exception as e:
+        print(f"Error renaming conversation: {e}")
+        return False
+    finally:
+        conn.close()
+
+def delete_conversation(conversation_id):
+
+    conn = get_connection()
+    if not conn:
+        print("Failed to connect to the database.")
+        return False
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM conversation_history WHERE conversation_id = %s;", (conversation_id))
+        cursor.execute("DELETE FROM conversations WHERE id = %s;", (conversation_id,))
+        conn.commit()
+        print(f"Conversation ID {conversation_id} and its history deleted.")
+        return True
+    except Exception as e:
+        print(f"Error deleting conversation: {e}")
+        return False
     finally:
         conn.close()
 

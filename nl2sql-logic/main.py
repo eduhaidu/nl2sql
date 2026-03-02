@@ -3,10 +3,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from NLInputModel import NLInputModel
 from DBURLInputModel import DBURLInputModel
 from QueryModel import QueryModel
+from ConversationNameModel import ConversationNameModel
 from session_manager import SessionManager
 from QueryExtractor import extract_sql_query
 from ValidationModule import Validator
-from conversation_controller import create_conversation, get_conversations, get_conversation_history, add_message_to_conversation, get_conversation_details
+from conversation_controller import (
+    create_conversation, 
+    get_conversations, 
+    get_conversation_history, 
+    add_message_to_conversation, 
+    get_conversation_details, 
+    rename_conversation as rename_conversation_db,  # ← Alias to avoid name collision
+    delete_conversation
+)
 from result_storage import ResultStorage
 app = FastAPI()
 
@@ -127,12 +136,31 @@ def conversation_history(conversation_id: str):
         "messages": messages
     }
 
+@app.put("/conversations/{conversation_id}")
+def rename_conversation(conversation_id: str, new_name: ConversationNameModel):
+    success = rename_conversation_db(conversation_id, new_name.name)  # ← Now calls the controller function
+    if success:
+        return {"message": f"Conversation renamed to {new_name.name} successfully."}
+    else:       
+        return {"error": "Failed to rename conversation."}
+
+@app.delete("/conversations/{conversation_id}")
+def delete_conversation_endpoint(conversation_id: str):
+    delete_conversation(conversation_id)
+    # Also cleanup any associated session
+    for sid, session in list(session_manager.sessions.items()):
+        if session.get("conversation_id") == conversation_id:
+            session_manager.cleanup_session(sid)
+            print(f"Deleted session {sid} associated with conversation {conversation_id}")
+    return {"message": "Conversation and associated sessions deleted successfully."}
+
 @app.post("/executesql/{session_id}")
 def execute_sql_query(session_id: str, query: QueryModel):
     session = session_manager.get_session(session_id)
     if not session:
         return {"error": "Invalid session ID."}
-    
+    if "SELECT" not in query.query.upper():
+        return {"error": "Only SELECT queries are allowed for execution."}
     try:
         sqlalchemy_session = session["sqlalchemy_session"]
         result = sqlalchemy_session.execute_query(query)
