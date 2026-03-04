@@ -1,0 +1,8 @@
+[
+    {
+        "question": "Find products that cost more than $50",
+        "sql": "SELECT ProductName, UnitPrice FROM Products WHERE UnitPrice > 50;",
+        "source": "production",
+        "added_at": "2026-03-04T17:51:54.312250"
+    }
+]

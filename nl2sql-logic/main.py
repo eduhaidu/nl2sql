@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from NLInputModel import NLInputModel
 from DBURLInputModel import DBURLInputModel
 from QueryModel import QueryModel
+from FeedbackModel import FeedbackModel
 from ConversationNameModel import ConversationNameModel
 from session_manager import SessionManager
 from QueryExtractor import extract_sql_query
@@ -17,6 +18,8 @@ from conversation_controller import (
     delete_conversation
 )
 from result_storage import ResultStorage
+from feedback_storage import FeedbackStorage
+from example_manager import ExampleManager
 app = FastAPI()
 
 # CORS configuration - allow both localhost and 127.0.0.1
@@ -233,3 +236,27 @@ def generate_retry_prompt(session_id: str, data: NLInputModel, previous_sql: str
         return {"response": response, "query": new_sql_query}
     except Exception as e:
         return {"error": str(e)}
+    
+@app.post("/feedback/{conversation_id}")
+def submit_feedback(conversation_id: str, feedback: FeedbackModel):
+    """Store feedback and update production examples pool"""
+    feedback_storage = FeedbackStorage()
+    feedback_storage.store_feedback(conversation_id, feedback)
+    
+    example_manager = ExampleManager()
+
+    # Add successful queries to production examples pool
+    if feedback.feedback_type in ["positive", "correct"]:
+        example_manager.add_production_example(feedback.user_question, feedback.generated_sql)
+        print(f"Added successful query to production examples: {feedback.user_question}")
+
+    # Add corrected queries to production examples pool
+    if feedback.feedback_type in ["negative", "incorrect"] and feedback.corrected_sql:
+        example_manager.add_corrected_example(
+            feedback.user_question, 
+            feedback.generated_sql, 
+            feedback.corrected_sql
+        )
+        print(f"Added corrected query to production examples: {feedback.user_question}")
+
+    return {"message": "Feedback submitted successfully."}

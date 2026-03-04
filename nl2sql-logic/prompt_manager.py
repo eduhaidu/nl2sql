@@ -1,5 +1,6 @@
 import ollama
 import json
+from example_manager import ExampleManager
 from sentence_transformers import SentenceTransformer, util
 
 class PromptManager:
@@ -9,7 +10,8 @@ class PromptManager:
         self.schema = schema
         self.database_type = database_type
         self.client = ollama.Client()
-        self.examples = json.loads(open('prompt_examples.json').read())
+        self.example_manager = ExampleManager()
+        self.examples = self.example_manager.get_examples()
         self.conversation_history = []
         self.max_history_turns = 3  # Keep last 3 Q&A pairs
         self._initialize_context()
@@ -77,7 +79,8 @@ class PromptManager:
                 relevant_tables[table_name] = table_data
         return relevant_tables
     
-    def select_relevant_examples(self, nl_input, example_count=2):
+    
+    def select_relevant_static_examples(self, nl_input, example_count=2):
         model = self.model if hasattr(self, 'model') else SentenceTransformer('all-MiniLM-L6-v2')
         nl_embedding = model.encode(nl_input, convert_to_tensor=True)
 
@@ -87,6 +90,138 @@ class PromptManager:
             example_embedding = model.encode(example_text, convert_to_tensor=True)
             similarity = util.pytorch_cos_sim(nl_embedding, example_embedding).item()
             example_similarities.append((similarity, example))
+
+        example_similarities.sort(key=lambda x: x[0], reverse=True)
+        selected_examples = [ex for _, ex in example_similarities[:example_count]]
+        return selected_examples
+    
+    def select_relevant_examples(self, nl_input, example_count=3, 
+                                 production_ratio=0.6, 
+                                 diversity_threshold=0.85):
+        """
+        Intelligently combine static examples with production examples from JSON.
+        
+        Args:
+            nl_input: The user's natural language query
+            example_count: Total number of examples to return
+            production_ratio: Proportion of examples from production (0.0-1.0)
+            diversity_threshold: Similarity threshold to ensure diverse examples (0.0-1.0)
+        
+        Returns:
+            List of selected examples with best semantic match
+        """
+        model = self.model if hasattr(self, 'model') else SentenceTransformer('all-MiniLM-L6-v2')
+        nl_embedding = model.encode(nl_input, convert_to_tensor=True)
+        
+        # Get examples from both pools
+        static_examples = self.example_manager.get_static_examples()
+        production_examples = self.example_manager.get_production_examples()
+        
+        # Calculate target counts
+        production_count = int(example_count * production_ratio)
+        static_count = example_count - production_count
+        
+        # If no production examples, use all static
+        if not production_examples:
+            production_count = 0
+            static_count = example_count
+        
+        # Calculate similarities for production examples
+        production_similarities = []
+        for example in production_examples:
+            example_text = example['question'] + ' ' + example['sql']
+            example_embedding = model.encode(example_text, convert_to_tensor=True)
+            similarity = util.pytorch_cos_sim(nl_embedding, example_embedding).item()
+            production_similarities.append((similarity, example))
+        
+        # Calculate similarities for static examples
+        static_similarities = []
+        for example in static_examples:
+            example_text = example['question'] + ' ' + example['sql']
+            example_embedding = model.encode(example_text, convert_to_tensor=True)
+            similarity = util.pytorch_cos_sim(nl_embedding, example_embedding).item()
+            static_similarities.append((similarity, example))
+        
+        # Sort by similarity
+        production_similarities.sort(key=lambda x: x[0], reverse=True)
+        static_similarities.sort(key=lambda x: x[0], reverse=True)
+        
+        selected_examples = []
+        selected_embeddings = []
+        
+        # Select production examples with diversity check
+        for sim, example in production_similarities:
+            if len([e for e in selected_examples if e.get('source') == 'production']) >= production_count:
+                break
+            
+            # Check diversity - avoid very similar examples
+            example_text = example['question'] + ' ' + example['sql']
+            example_embedding = model.encode(example_text, convert_to_tensor=True)
+            
+            is_diverse = True
+            for selected_emb in selected_embeddings:
+                similarity_to_selected = util.pytorch_cos_sim(example_embedding, selected_emb).item()
+                if similarity_to_selected > diversity_threshold:
+                    is_diverse = False
+                    break
+            
+            if is_diverse:
+                selected_examples.append(example)
+                selected_embeddings.append(example_embedding)
+        
+        # Fill remaining with static examples (also with diversity check)
+        for sim, example in static_similarities:
+            if len([e for e in selected_examples if e.get('source') != 'production']) >= static_count:
+                break
+            
+            example_text = example['question'] + ' ' + example['sql']
+            example_embedding = model.encode(example_text, convert_to_tensor=True)
+            
+            is_diverse = True
+            for selected_emb in selected_embeddings:
+                similarity_to_selected = util.pytorch_cos_sim(example_embedding, selected_emb).item()
+                if similarity_to_selected > diversity_threshold:
+                    is_diverse = False
+                    break
+            
+            if is_diverse:
+                selected_examples.append(example)
+                selected_embeddings.append(example_embedding)
+        
+        # If we still don't have enough examples (due to diversity filtering),
+        # relax diversity and add top-ranked remaining examples
+        if len(selected_examples) < example_count:
+            all_remaining = [(s, e) for s, e in production_similarities + static_similarities
+                           if e not in selected_examples]
+            all_remaining.sort(key=lambda x: x[0], reverse=True)
+            
+            for sim, example in all_remaining:
+                if len(selected_examples) >= example_count:
+                    break
+                selected_examples.append(example)
+        
+        # Log what we selected
+        production_selected = sum(1 for e in selected_examples if e.get('source') == 'production')
+        static_selected = len(selected_examples) - production_selected
+        print(f"Selected {len(selected_examples)} examples: "
+              f"{production_selected} from production, {static_selected} from static")
+        
+        return selected_examples
+    
+    def select_examples_from_history(self, nl_input, history_tuples, example_count=2):
+        model = self.model if hasattr(self, 'model') else SentenceTransformer('all-MiniLM-L6-v2')
+        nl_embedding = model.encode(nl_input, convert_to_tensor=True)
+
+        example_similarities = []
+        for message, sender, timestamp in history_tuples:
+            if sender == "user":
+                example_text = message
+            else:
+                example_text = "Assistant response: " + message
+            
+            example_embedding = model.encode(example_text, convert_to_tensor=True)
+            similarity = util.pytorch_cos_sim(nl_embedding, example_embedding).item()
+            example_similarities.append((similarity, {"message": message, "sender": sender}))
 
         example_similarities.sort(key=lambda x: x[0], reverse=True)
         selected_examples = [ex for _, ex in example_similarities[:example_count]]

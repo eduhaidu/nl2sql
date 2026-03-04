@@ -195,7 +195,7 @@ export default function ConversationPage() {
             {queryResult && (
               <div className="w-full">
                 <h2 className="text-xl font-semibold mb-3 text-white">Query Results:</h2>
-                <ResultTable result={queryResult} />
+                <ResultTable result={queryResult} conversation_id={conversationId} userQuestion={currentNLInput} generatedSQL={currentQuery} />
               </div>
             )}
             
