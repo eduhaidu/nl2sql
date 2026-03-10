@@ -128,7 +128,7 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
                     }`}
                   >
                     <div className="text-sm truncate">
-                      {conv.name ? conv.name : `Conversation ${conv.id.substring(0, 8)}`}
+                      {conv.name ? conv.name : `Conversation ${conv.id}`}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
                       {formatDate(conv.created_at)}

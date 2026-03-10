@@ -3,6 +3,14 @@
         "question": "Find products that cost more than $50",
         "sql": "SELECT ProductName, UnitPrice FROM Products WHERE UnitPrice > 50;",
         "source": "production",
-        "added_at": "2026-03-04T17:51:54.312250"
+        "added_at": "2026-03-04T17:51:54.312250",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "Show me the most ordered product",
+        "sql": "SELECT P.ProductName, COUNT(OD.OrderID) AS OrderCount FROM Products P INNER JOIN OrderDetails OD ON P.ProductID = OD.ProductID GROUP BY P.ProductName ORDER BY OrderCount DESC LIMIT 1;",
+        "source": "production",
+        "added_at": "2026-03-05T10:38:15.043498"
     }
 ]

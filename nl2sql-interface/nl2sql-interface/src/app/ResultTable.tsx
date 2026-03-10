@@ -42,7 +42,7 @@ export default function ResultTable({result, conversation_id, userQuestion, gene
 
     return (
         <div className="overflow-x-auto w-full">
-            <table className="min-w-full bg-white border border-gray-300">
+            <table className="min-w-full bg-white border border-gray-300 rounded-lg">
                 <thead>
                     <tr>
                         {columns.map((col) => (
@@ -61,7 +61,7 @@ export default function ResultTable({result, conversation_id, userQuestion, gene
                             {columns.map((col) => (
                                 <td
                                     key={col}
-                                    className="py-2 px-4 border-b border-gray-300 text-sm text-gray-900"
+                                    className="py-2 px-4 border-b border-gray-300 text-sm text-gray-900 overflow-y-scroll max-h-32"
                                 >
                                     {row[col] !== null && row[col] !== undefined ? row[col].toString() : 'NULL'}
                                 </td>
