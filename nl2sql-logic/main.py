@@ -41,6 +41,16 @@ app.add_middleware(
 
 session_manager = SessionManager()
 
+def check_if_query_uses_schema(query, schema_info):
+    # Simple heuristic: check if any table or column names from the schema are present in the query
+    for table in schema_info.get("tables", []):
+        if table["name"].lower() in query.lower():
+            return True
+        for column in table.get("columns", []):
+            if column["name"].lower() in query.lower():
+                return True
+    return False
+
 @app.get("/")
 def read_root():
     return {"Hello": "World", "active_sessions": len(session_manager.sessions)}
@@ -164,6 +174,10 @@ def execute_sql_query(session_id: str, query: QueryModel):
         return {"error": "Invalid session ID."}
     if "SELECT" not in query.query.upper():
         return {"error": "Only SELECT queries are allowed for execution."}
+    # schema_processor = session["schema_processor"]
+    # schema_info = schema_processor.process_schema()
+    # if not check_if_query_uses_schema(query.query, schema_info):
+    #     return {"error": "The query does not appear to use the database schema. Please ensure your query references the correct tables and columns."}
     try:
         sqlalchemy_session = session["sqlalchemy_session"]
         result = sqlalchemy_session.execute_query(query)
@@ -184,7 +198,7 @@ def validate_nl_input(session_id: str, data: NLInputModel):
         sqlalchemy_session = session["sqlalchemy_session"]
         prompt_manager = session["prompt_manager"]
         schema_processor = session["schema_processor"]
-        
+        schema_info = schema_processor.process_schema()
         validator = Validator(
             sqlalchemy_session=sqlalchemy_session,
             prompt_manager=prompt_manager,

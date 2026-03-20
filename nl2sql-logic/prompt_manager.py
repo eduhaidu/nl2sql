@@ -1,5 +1,6 @@
 import ollama
 import json
+import re
 from example_manager import ExampleManager
 from sentence_transformers import SentenceTransformer, util
 
@@ -24,8 +25,12 @@ class PromptManager:
             "1. Only use tables and columns that exist in the provided database schema.\n"
             "2. Ensure SQL syntax is correct and compatible with the target database.\n"
             "3. Optimize queries for performance where possible.\n"
-            "4. Return only the SQL query without any additional text, explanations or formatting.\n"
-            "5. Handle table and column names with spaces or special characters by enclosing them in square brackets or double quotes.\n"
+            "4. Return ONLY ONE final SQL query that directly answers the question. Do not provide multiple query options, intermediate queries, or step-by-step alternatives.\n"
+            "5. Do not include ANY explanations, descriptions, notes, or commentary - ONLY the SQL query itself.\n"
+            "6. Handle table and column names with spaces or special characters by enclosing them in square brackets or double quotes.\n"
+            "7. Always answer ONLY the latest user question in the current turn.\n"
+            "8. If the required table/column is missing from schema context, return the safest valid SQL based only on provided schema.\n"
+            "9. Your entire response should be executable SQL - nothing else.\n"
         )
         context_prompt += "\n" + rules_prompt
         if self.database_type:
@@ -75,7 +80,7 @@ class PromptManager:
             table_embedding = model.encode(table_text, convert_to_tensor=True)
 
             similarity = util.pytorch_cos_sim(nl_embedding, table_embedding).item()
-            if similarity > 0.3:  # Threshold can be adjusted
+            if similarity > 0.5:  # Threshold can be adjusted
                 relevant_tables[table_name] = table_data
         return relevant_tables
     
@@ -270,13 +275,21 @@ class PromptManager:
 
     def generate_prompt(self, nl_input):
         filtered_schema = self.filter_relevant_tables(nl_input)
+        if not filtered_schema and isinstance(self.schema, dict):
+            # Fallback: provide a small schema slice even when semantic matching is weak
+            fallback_items = list(self.schema.items())[:5]
+            filtered_schema = dict(fallback_items)
         formatted_schema = self.format_filtered_schema(filtered_schema)
-        prompt = f"Question: {nl_input}\n\nSchema (columns in [brackets] require quoting in SQL):\n{formatted_schema}\n\nGenerate the SQL query that answers the question based on the provided schema."
+        prompt = f"Question: {nl_input}\n\nSchema (columns in [brackets] require quoting in SQL):\n{formatted_schema}\n\n"
+
         examples = self.select_relevant_examples(nl_input)
         if examples:
-            prompt += "\n\nExamples:\n"
+            prompt += "Examples:\n"
             for example in examples:
-                prompt += f"Example: {example['question']}\nSQL: {example['sql']}\n\n"
+                prompt += f"Question: {example['question']}\nSQL: {example['sql']}\n\n"
+
+        # Strong closing instruction
+        prompt += "Generate ONLY the SQL query - no explanations, no alternatives, no text. Just executable SQL:"
         return prompt
         
     def trim_conversation_history(self):
@@ -288,6 +301,33 @@ class PromptManager:
     def reset_conversation(self):
         """Reset conversation history to just the system prompt"""
         self.conversation_history = [self.system_prompt]
+
+    def _compact_assistant_message(self, assistant_text):
+        """Keep assistant memory compact by storing SQL only when possible."""
+        if not assistant_text:
+            return assistant_text
+
+        code_block_pattern = r"```sql\s*(.*?)\s*```"
+        match = re.search(code_block_pattern, assistant_text, re.DOTALL | re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+
+        select_match = re.search(r"(SELECT[\s\S]*?;)", assistant_text, re.IGNORECASE)
+        if select_match:
+            return select_match.group(1).strip()
+
+        return assistant_text.strip()
+
+    def _build_request_messages(self, nl_input):
+        """Build transient request messages: compact memory + fresh schema/examples."""
+        prompt = self.generate_prompt(nl_input)
+
+        compact_history = self.conversation_history[1:] if len(self.conversation_history) > 1 else []
+        max_items = self.max_history_turns * 2
+        if len(compact_history) > max_items:
+            compact_history = compact_history[-max_items:]
+
+        return [self.system_prompt] + compact_history + [{"role": "user", "content": prompt}]
     
     def load_conversation_history(self, history_tuples):
         """Load conversation history from PostgreSQL format [(message, sender, timestamp), ...]"""
@@ -295,6 +335,8 @@ class PromptManager:
         
         for message, sender, timestamp in history_tuples:
             role = "user" if sender == "user" else "assistant"
+            if role == "assistant":
+                message = self._compact_assistant_message(message)
             self.conversation_history.append({"role": role, "content": message})
         
         # Trim if needed
@@ -303,16 +345,20 @@ class PromptManager:
         
     def get_response(self, nl_input):
         self.nl_input = nl_input
-        prompt = self.generate_prompt(nl_input)
-        
-        self.conversation_history.append({"role": "user", "content": prompt})
+        request_messages = self._build_request_messages(nl_input)
 
         response = self.client.chat(
             model=self.model_name,
-            messages=self.conversation_history
+            messages=request_messages,
             # temperature=self.temperature,
             # max_tokens=self.max_tokens
         )
 
-        self.conversation_history.append({"role": "assistant", "content": response.message['content']})
-        return response.message['content']
+        assistant_text = response.message['content']
+        compact_assistant = self._compact_assistant_message(assistant_text)
+
+        # Persist compact memory only; request-specific schema/examples are transient
+        self.conversation_history.append({"role": "user", "content": nl_input})
+        self.conversation_history.append({"role": "assistant", "content": compact_assistant})
+        self.trim_conversation_history()
+        return assistant_text
