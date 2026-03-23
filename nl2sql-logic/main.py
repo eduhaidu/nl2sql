@@ -103,19 +103,19 @@ def conversation_history(conversation_id: str):
     history = get_conversation_history(conversation_id)
     if history is None:
         return {"error": "Failed to retrieve conversation history."}
-    
+
     # Get conversation details (including db_url)
     conversation = get_conversation_details(conversation_id)
     if not conversation:
         return {"error": "Conversation not found."}
-    
+
     # Find or create the session_id for this conversation_id
     session_id = None
     for sid, session in session_manager.sessions.items():
         if session.get("conversation_id") == conversation_id:
             session_id = sid
             break
-    
+
     # If no session exists, recreate it from the stored db_url
     if not session_id:
         print(f"No session found for conversation {conversation_id}, recreating...")
@@ -125,24 +125,53 @@ def conversation_history(conversation_id: str):
             conversation_id=conversation_id
         )
         print(f"Session recreated with ID: {session_id}")
-    
+
     # Always sync conversation history from PostgreSQL to PromptManager
     session = session_manager.get_session(session_id)
     if session and history:
         session["prompt_manager"].load_conversation_history(history)
         print(f"Synced {len(history)} messages to PromptManager for conversation {conversation_id}")
-    
-    # Format history as messages with user_message and assistant_response
+
+    # Retrieve cached query results
+    result_storage = ResultStorage()
+    cached_results = result_storage.get_query_results_for_conversation(conversation_id)
+    print(f"Retrieved {len(cached_results)} cached query results")
+
+    # Format history as messages with user_message, assistant_response, and cached results
     messages = []
     for i in range(0, len(history), 2):
         msg_dict = {}
         if i < len(history) and history[i][1] == "user":
             msg_dict["user_message"] = history[i][0]
         if i + 1 < len(history) and history[i + 1][1] == "assistant":
-            msg_dict["assistant_response"] = history[i + 1][0]
+            assistant_message = history[i + 1][0]
+            msg_dict["assistant_response"] = assistant_message
+
+            # Extract SQL from assistant message and match with cached results
+            try:
+                sql_query = extract_sql_query(assistant_message)
+                if sql_query:
+                    # Normalize query for matching
+                    normalized_query = ' '.join(sql_query.split())
+                    # Look for matching cached result
+                    if normalized_query in cached_results:
+                        msg_dict["cached_result"] = cached_results[normalized_query]
+                        msg_dict["generated_sql"] = sql_query
+                        print(f"Matched cached result for query: {sql_query[:60]}...")
+                    else:
+                        # Also try exact match without normalization
+                        for cached_query, result in cached_results.items():
+                            if sql_query.strip() in cached_query or cached_query in sql_query.strip():
+                                msg_dict["cached_result"] = result
+                                msg_dict["generated_sql"] = sql_query
+                                print(f"Matched cached result with fuzzy match")
+                                break
+            except Exception as e:
+                print(f"Error matching cached result: {e}")
+
         if msg_dict:
             messages.append(msg_dict)
-    
+
     return {
         "conversation_id": conversation_id,
         "session_id": session_id,

@@ -41,7 +41,8 @@ export default function ResultTable({result, conversation_id, userQuestion, gene
     const columns = Object.keys(result[0]);
 
     return (
-        <div className="overflow-x-auto w-full">
+        <div className="w-full">
+            <div className="max-h-96 overflow-auto rounded-lg border border-gray-300">
             <table className="min-w-full bg-white border border-gray-300 rounded-lg">
                 <thead>
                     <tr>
@@ -61,7 +62,7 @@ export default function ResultTable({result, conversation_id, userQuestion, gene
                             {columns.map((col) => (
                                 <td
                                     key={col}
-                                    className="py-2 px-4 border-b border-gray-300 text-sm text-gray-900 overflow-y-scroll max-h-32"
+                                    className="py-2 px-4 border-b border-gray-300 text-sm text-gray-900"
                                 >
                                     {row[col] !== null && row[col] !== undefined ? row[col].toString() : 'NULL'}
                                 </td>
@@ -70,6 +71,7 @@ export default function ResultTable({result, conversation_id, userQuestion, gene
                     ))}
                 </tbody>
             </table>
+            </div>
             <div className="mt-4 flex space-x-2">
                 <button onClick={() => handleFeedback('positive')} className={`px-4 py-2 rounded-lg text-white ${feedback === 'positive' ? 'bg-green-600' : 'bg-gray-600 hover:bg-gray-700'}`}>
                     👍

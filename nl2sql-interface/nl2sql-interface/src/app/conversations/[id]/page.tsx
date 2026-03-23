@@ -10,6 +10,9 @@ import ImportDBModal from "@/app/components/ImportDBModal";
 interface Message {
   message: string;
   isUser: boolean;
+  result?: any[];
+  generatedSQL?: string;
+  userQuestion?: string;
 }
 
 function generateRetryPrompt(originalNL: string, failedQuery: string, errorMessage: string) {
@@ -28,7 +31,6 @@ export default function ConversationPage() {
   const conversationId = params.id as string;
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [queryResult, setQueryResult] = useState<any>(null);
   const [currentQuery, setCurrentQuery] = useState<string>("");
   const [currentNLInput, setCurrentNLInput] = useState<string>("");
   const [showRetryOption, setShowRetryOption] = useState(false);
@@ -43,7 +45,7 @@ export default function ConversationPage() {
       try {
         const response = await axios.get(`http://127.0.0.1:8000/conversations/${conversationId}`);
         const history = response.data.messages || [];
-        
+
         // Convert backend message format to frontend format
         const formattedMessages: Message[] = history.flatMap((msg: any) => {
           const msgs: Message[] = [];
@@ -51,18 +53,25 @@ export default function ConversationPage() {
             msgs.push({ message: msg.user_message, isUser: true });
           }
           if (msg.assistant_response) {
-            msgs.push({ message: msg.assistant_response, isUser: false });
+            msgs.push({
+              message: msg.assistant_response,
+              isUser: false,
+              // Include cached results if available
+              result: msg.cached_result,
+              generatedSQL: msg.generated_sql,
+              userQuestion: msg.user_message
+            });
           }
           return msgs;
         });
-        
+
         setMessages(formattedMessages);
         setSessionId(response.data.session_id);
       } catch (error) {
         console.error("Error loading conversation:", error);
       }
     };
-    
+
     loadConversation();
   }, [conversationId]);
 
@@ -83,7 +92,7 @@ export default function ConversationPage() {
     setShowRetryOption(false);
     setShowRetryEditor(false);
     
-    const sendMessage = async (message: string) => {
+    const sendMessage = async (message: string, originalUserQuestion: string) => {
       if (!sessionId) {
         alert("Session not found. Please reload the page.");
         return;
@@ -96,20 +105,38 @@ export default function ConversationPage() {
         console.log("Response from backend:", response.data);
         const AIMessage = response.data.response;
         const generatedQuery = response.data.query;
-        setMessages(prevMessages => [...prevMessages, { message: AIMessage, isUser: false }]);
-        return generatedQuery;
+
+        // Store the index before adding the message
+        let assistantMessageIndex = -1;
+        setMessages(prevMessages => {
+          // The new assistant message will be at the end of prevMessages
+          assistantMessageIndex = prevMessages.length;
+          console.log("Adding assistant message at index:", assistantMessageIndex);
+          return [
+            ...prevMessages,
+            {
+              message: AIMessage,
+              isUser: false,
+              generatedSQL: generatedQuery,
+              userQuestion: originalUserQuestion
+            }
+          ];
+        });
+
+        return { generatedQuery, assistantMessageIndex };
       } catch (error) {
         console.error("Error sending message:", error);
         return null;
       }
     };
-    
-    const query = await sendMessage(nlInput);
-    if (query) {
-      setCurrentQuery(query);
-      const errorMsg = await executeQuery(query);
+
+    const sendResult = await sendMessage(nlInput, nlInput);
+    if (sendResult) {
+      const { generatedQuery, assistantMessageIndex } = sendResult;
+      setCurrentQuery(generatedQuery);
+      const errorMsg = await executeQuery(generatedQuery, assistantMessageIndex, nlInput);
       if (errorMsg && errorMsg !== "Query executed successfully.") {
-        const generatedRetryPrompt = generateRetryPrompt(nlInput, query, errorMsg);
+        const generatedRetryPrompt = generateRetryPrompt(nlInput, generatedQuery, errorMsg);
         setRetryPrompt(generatedRetryPrompt);
         setErrorMessage(errorMsg);
         setShowRetryEditor(true);
@@ -117,7 +144,7 @@ export default function ConversationPage() {
     }
   };
 
-  const executeQuery = async (query: string) => {
+  const executeQuery = async (query: string, assistantMessageIndex: number, userQuestion: string) => {
     if (!sessionId) {
       alert("Session not found. Please reload the page.");
       return;
@@ -127,24 +154,50 @@ export default function ConversationPage() {
         query: query
       });
       console.log("Query execution result:", response.data);
-      
+      console.log("Updating message at index:", assistantMessageIndex);
+      console.log("Result is array?", Array.isArray(response.data.result));
+
+      if (response.data.error) {
+        // Handle error response
+        const errorMsg = response.data.error;
+        return errorMsg;
+      }
+
       if (Array.isArray(response.data.result)) {
-        setQueryResult(response.data.result);
+        // Use functional update to ensure we have the latest state
+        setMessages(prevMessages => {
+          console.log("Previous messages length:", prevMessages.length);
+          console.log("Updating index:", assistantMessageIndex);
+
+          return prevMessages.map((msg, index) => {
+            if (index === assistantMessageIndex) {
+              console.log("Found message to update at index:", index);
+              return {
+                ...msg,
+                result: response.data.result,
+                generatedSQL: query,
+                userQuestion
+              };
+            }
+            return msg;
+          });
+        });
         setShowRetryOption(true);
         setErrorMessage(null);
       } else {
         const errorMsg = response.data.result || "Query executed successfully.";
-        setQueryResult(null);
-        setMessages(prevMessages => [...prevMessages, { 
-          message: typeof response.data.result === 'string' 
-            ? response.data.result 
-            : JSON.stringify(response.data.result), 
-          isUser: false 
+        setMessages(prevMessages => [...prevMessages, {
+          message: typeof response.data.result === 'string'
+            ? response.data.result
+            : JSON.stringify(response.data.result),
+          isUser: false
         }]);
         return errorMsg;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error executing query:", error);
+      const errorMsg = error.response?.data?.error || error.message || "Unknown error executing query";
+      return errorMsg;
     }
   };
 
@@ -155,7 +208,7 @@ export default function ConversationPage() {
     }
     try {
       setMessages(prevMessages => [...prevMessages, { message: editedPrompt, isUser: true }]);
-      
+
       const response = await axios.post("http://127.0.0.1:8000/nlinput", {
         nl_input: editedPrompt,
         session_id: sessionId
@@ -163,11 +216,26 @@ export default function ConversationPage() {
       console.log("Retry response from backend:", response.data);
       const AIMessage = response.data.response;
       const newGeneratedQuery = response.data.query;
-      setMessages(prevMessages => [...prevMessages, { message: AIMessage, isUser: false }]);
-      
+
+      // Store the index before adding the message
+      let assistantMessageIndex = -1;
+      setMessages(prevMessages => {
+        assistantMessageIndex = prevMessages.length;
+        console.log("Adding retry assistant message at index:", assistantMessageIndex);
+        return [
+          ...prevMessages,
+          {
+            message: AIMessage,
+            isUser: false,
+            generatedSQL: newGeneratedQuery,
+            userQuestion: editedPrompt
+          }
+        ];
+      });
+
       setCurrentQuery(newGeneratedQuery);
-      await executeQuery(newGeneratedQuery);
-      
+      await executeQuery(newGeneratedQuery, assistantMessageIndex, editedPrompt);
+
       setShowRetryEditor(false);
       setRetryPrompt("");
     } catch (error) {
@@ -188,16 +256,21 @@ export default function ConversationPage() {
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-4xl mx-auto space-y-4">
             {messages.map((msg, index) => (
-              <MessageBubble key={index} message={msg.message} isUser={msg.isUser} />
-            ))}
-            
-            {/* Query Results */}
-            {queryResult && (
-              <div className="w-full">
-                <h2 className="text-xl font-semibold mb-3 text-white">Query Results:</h2>
-                <ResultTable result={queryResult} conversation_id={conversationId} userQuestion={currentNLInput} generatedSQL={currentQuery} />
+              <div key={index} className="space-y-3">
+                <MessageBubble message={msg.message} isUser={msg.isUser} />
+                {msg.result && (
+                  <div className="w-full">
+                    <h2 className="text-xl font-semibold mb-3 text-white">Query Results:</h2>
+                    <ResultTable
+                      result={msg.result}
+                      conversation_id={conversationId}
+                      userQuestion={msg.userQuestion || ""}
+                      generatedSQL={msg.generatedSQL || ""}
+                    />
+                  </div>
+                )}
               </div>
-            )}
+            ))}
             
             {/* Retry Editor */}
             {showRetryEditor && (
