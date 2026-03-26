@@ -4,6 +4,7 @@ from NLInputModel import NLInputModel
 from DBURLInputModel import DBURLInputModel
 from QueryModel import QueryModel
 from FeedbackModel import FeedbackModel
+from CredentialsModel import CredentialsModel
 from ConversationNameModel import ConversationNameModel
 from session_manager import SessionManager
 from QueryExtractor import extract_sql_query
@@ -20,6 +21,7 @@ from conversation_controller import (
 from result_storage import ResultStorage
 from feedback_storage import FeedbackStorage
 from example_manager import ExampleManager
+from auth_controller import AuthController
 app = FastAPI()
 
 # CORS configuration - allow both localhost and 127.0.0.1
@@ -54,6 +56,22 @@ def check_if_query_uses_schema(query, schema_info):
 @app.get("/")
 def read_root():
     return {"Hello": "World", "active_sessions": len(session_manager.sessions)}
+
+@app.post("/login")
+def login(credentials: CredentialsModel):
+    auth_controller = AuthController()
+    if auth_controller.authenticate_user(credentials.username, credentials.password):
+        return {"message": "Login successful"}
+    else:
+        return {"error": "Invalid username or password"}
+    
+@app.post("/register")
+def register(credentials: CredentialsModel):
+    auth_controller = AuthController()
+    if auth_controller.register_user(credentials.username, credentials.password):
+        return {"message": "User registered successfully"}
+    else:
+        return {"error": "Failed to register user"}
 
 @app.delete("/disconnect/{session_id}")
 def disconnect_session(session_id: str):

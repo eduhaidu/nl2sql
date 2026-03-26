@@ -24,7 +24,7 @@
         "original_sql": null
     },
     {
-        "question": "Avoid counting from the previous response, give me just the names of the specific artists asociated with those songs",
+        "question": "Who are the artists that made the songs named Torn and Hero?",
         "sql": "SELECT DISTINCT AR.Name FROM Artist AS AR\nINNER JOIN Album AS A ON AR.ArtistId = A.ArtistId\nINNER JOIN Track AS T ON A.AlbumId = T.AlbumId\nWHERE T.Name IN ('Torn', 'Hero');",
         "source": "production",
         "added_at": "2026-03-16T10:26:18.995731",
@@ -86,5 +86,19 @@
         "added_at": "2026-03-21T15:06:23.968992",
         "corrected": true,
         "original_sql": "SELECT SUM(OD.Quantity * P.Price) AS TotalRevenue FROM OrderDetails OD INNER JOIN Products P ON OD.ProductID = P.ProductID WHERE P.ProductName = 'Tofu';"
+    },
+    {
+        "question": "Which customers have placed more than 15 orders?",
+        "sql": "SELECT COUNT(C.CustomerID) AS NumberOfOrders\nFROM Customers C\nJOIN Orders O ON C.CustomerID = O.CustomerID\nGROUP BY C.CustomerID\nHAVING COUNT(O.OrderID) > 15;",
+        "source": "production",
+        "added_at": "2026-03-23T16:32:59.060060",
+        "corrected": true,
+        "original_sql": "SELECT C.CustomerID, COUNT(OD.OrderID) AS NumberOfOrders FROM Customers C JOIN CustomerCustomerDemo CD ON C.CustomerID = CD.CustomerID JOIN OrderDetails OD ON CD.CustomerID = OD.CustomerID GROUP BY C.CustomerID HAVING COUNT(OD.OrderID) > 15;"
+    },
+    {
+        "question": "List the top 3 suppliers based on the total revenue of the products they supply.",
+        "sql": "SELECT S.SupplierID, SUM(OD.Quantity * P.UnitPrice) AS TotalRevenue\nFROM Suppliers S\nJOIN Products P ON S.SupplierID = P.SupplierID\nJOIN OrderDetails OD ON P.ProductID = OD.ProductID\nGROUP BY S.SupplierID\nORDER BY TotalRevenue DESC\nLIMIT 3;",
+        "source": "production",
+        "added_at": "2026-03-23T17:02:22.233813"
     }
 ]

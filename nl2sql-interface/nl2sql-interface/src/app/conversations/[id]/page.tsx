@@ -3,11 +3,12 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import axios from "axios";
 import Sidebar from "../../components/Sidebar";
-import MessageBubble from "../../MessageBubble";
-import ResultTable from "../../ResultTable";
+import MessageBubble from "../../components/MessageBubble";
+import ResultTable from "../../components/ResultTable";
 import ImportDBModal from "@/app/components/ImportDBModal";
 
 interface Message {
+  id: string;
   message: string;
   isUser: boolean;
   result?: any[];
@@ -50,10 +51,11 @@ export default function ConversationPage() {
         const formattedMessages: Message[] = history.flatMap((msg: any) => {
           const msgs: Message[] = [];
           if (msg.user_message) {
-            msgs.push({ message: msg.user_message, isUser: true });
+            msgs.push({ id: crypto.randomUUID(), message: msg.user_message, isUser: true });
           }
           if (msg.assistant_response) {
             msgs.push({
+              id: crypto.randomUUID(),
               message: msg.assistant_response,
               isUser: false,
               // Include cached results if available
@@ -87,7 +89,7 @@ export default function ConversationPage() {
     form.reset();
     
     console.log("Natural Language Input:", nlInput);
-    setMessages(prevMessages => [...prevMessages, { message: nlInput, isUser: true }]);
+    setMessages(prevMessages => [...prevMessages, { id: crypto.randomUUID(), message: nlInput, isUser: true }]);
     setCurrentNLInput(nlInput);
     setShowRetryOption(false);
     setShowRetryEditor(false);
@@ -105,16 +107,12 @@ export default function ConversationPage() {
         console.log("Response from backend:", response.data);
         const AIMessage = response.data.response;
         const generatedQuery = response.data.query;
-
-        // Store the index before adding the message
-        let assistantMessageIndex = -1;
+        const assistantMessageId = crypto.randomUUID();
         setMessages(prevMessages => {
-          // The new assistant message will be at the end of prevMessages
-          assistantMessageIndex = prevMessages.length;
-          console.log("Adding assistant message at index:", assistantMessageIndex);
           return [
             ...prevMessages,
             {
+              id: assistantMessageId,
               message: AIMessage,
               isUser: false,
               generatedSQL: generatedQuery,
@@ -122,8 +120,7 @@ export default function ConversationPage() {
             }
           ];
         });
-
-        return { generatedQuery, assistantMessageIndex };
+        return { generatedQuery, assistantMessageId };
       } catch (error) {
         console.error("Error sending message:", error);
         return null;
@@ -132,9 +129,9 @@ export default function ConversationPage() {
 
     const sendResult = await sendMessage(nlInput, nlInput);
     if (sendResult) {
-      const { generatedQuery, assistantMessageIndex } = sendResult;
+      const { generatedQuery, assistantMessageId } = sendResult;
       setCurrentQuery(generatedQuery);
-      const errorMsg = await executeQuery(generatedQuery, assistantMessageIndex, nlInput);
+      const errorMsg = await executeQuery(generatedQuery, assistantMessageId, nlInput);
       if (errorMsg && errorMsg !== "Query executed successfully.") {
         const generatedRetryPrompt = generateRetryPrompt(nlInput, generatedQuery, errorMsg);
         setRetryPrompt(generatedRetryPrompt);
@@ -144,7 +141,7 @@ export default function ConversationPage() {
     }
   };
 
-  const executeQuery = async (query: string, assistantMessageIndex: number, userQuestion: string) => {
+  const executeQuery = async (query: string, assistantMessageId: string, userQuestion: string) => {
     if (!sessionId) {
       alert("Session not found. Please reload the page.");
       return;
@@ -154,7 +151,7 @@ export default function ConversationPage() {
         query: query
       });
       console.log("Query execution result:", response.data);
-      console.log("Updating message at index:", assistantMessageIndex);
+      console.log("Updating message id:", assistantMessageId);
       console.log("Result is array?", Array.isArray(response.data.result));
 
       if (response.data.error) {
@@ -164,14 +161,10 @@ export default function ConversationPage() {
       }
 
       if (Array.isArray(response.data.result)) {
-        // Use functional update to ensure we have the latest state
         setMessages(prevMessages => {
-          console.log("Previous messages length:", prevMessages.length);
-          console.log("Updating index:", assistantMessageIndex);
-
-          return prevMessages.map((msg, index) => {
-            if (index === assistantMessageIndex) {
-              console.log("Found message to update at index:", index);
+          return prevMessages.map((msg) => {
+            if (msg.id === assistantMessageId) {
+              console.log("Found message to update with id:", msg.id);
               return {
                 ...msg,
                 result: response.data.result,
@@ -187,6 +180,7 @@ export default function ConversationPage() {
       } else {
         const errorMsg = response.data.result || "Query executed successfully.";
         setMessages(prevMessages => [...prevMessages, {
+          id: crypto.randomUUID(),
           message: typeof response.data.result === 'string'
             ? response.data.result
             : JSON.stringify(response.data.result),
@@ -207,7 +201,7 @@ export default function ConversationPage() {
       return;
     }
     try {
-      setMessages(prevMessages => [...prevMessages, { message: editedPrompt, isUser: true }]);
+      setMessages(prevMessages => [...prevMessages, { id: crypto.randomUUID(), message: editedPrompt, isUser: true }]);
 
       const response = await axios.post("http://127.0.0.1:8000/nlinput", {
         nl_input: editedPrompt,
@@ -216,15 +210,12 @@ export default function ConversationPage() {
       console.log("Retry response from backend:", response.data);
       const AIMessage = response.data.response;
       const newGeneratedQuery = response.data.query;
-
-      // Store the index before adding the message
-      let assistantMessageIndex = -1;
+      const assistantMessageId = crypto.randomUUID();
       setMessages(prevMessages => {
-        assistantMessageIndex = prevMessages.length;
-        console.log("Adding retry assistant message at index:", assistantMessageIndex);
         return [
           ...prevMessages,
           {
+            id: assistantMessageId,
             message: AIMessage,
             isUser: false,
             generatedSQL: newGeneratedQuery,
@@ -234,7 +225,7 @@ export default function ConversationPage() {
       });
 
       setCurrentQuery(newGeneratedQuery);
-      await executeQuery(newGeneratedQuery, assistantMessageIndex, editedPrompt);
+      await executeQuery(newGeneratedQuery, assistantMessageId, editedPrompt);
 
       setShowRetryEditor(false);
       setRetryPrompt("");
@@ -256,7 +247,7 @@ export default function ConversationPage() {
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-4xl mx-auto space-y-4">
             {messages.map((msg, index) => (
-              <div key={index} className="space-y-3">
+              <div key={msg.id} className="space-y-3">
                 <MessageBubble message={msg.message} isUser={msg.isUser} />
                 {msg.result && (
                   <div className="w-full">

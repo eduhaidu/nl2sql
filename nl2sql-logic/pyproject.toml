@@ -6,11 +6,14 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi[standard]>=0.121.2",
+    "jwcrypto>=1.5.6",
     "langchain>=1.2.10",
     "ollama>=0.6.1",
     "pandas>=3.0.0",
     "psycopg2>=2.9.11",
     "psycopg2-binary>=2.9.11",
+    "pycrypto>=2.6.1",
+    "python-jwt>=4.1.0",
     "sentence-transformers>=5.2.0",
     "sqlalchemy>=2.0.44",
     "uvicorn>=0.38.0",
