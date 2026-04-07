@@ -27,7 +27,7 @@ ${errorMessage}
 Please generate a corrected SQL query that fixes this error.`;
 }
 
-export default function ConversationPage() {
+export default function ConversationPage(user_id: string | null) {
   const params = useParams();
   const conversationId = params.id as string;
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -39,6 +39,7 @@ export default function ConversationPage() {
   const [retryPrompt, setRetryPrompt] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [thinking, setThinking] = useState(false);
 
   // Load conversation history on mount
   useEffect(() => {
@@ -82,7 +83,7 @@ export default function ConversationPage() {
     const form = event.currentTarget;
     const formData = new FormData(form);
     const nlInput = formData.get("nl-input") as string;
-    
+    setThinking(true);
     if (!nlInput.trim()) return;
     
     // Reset form immediately before async operations
@@ -123,6 +124,7 @@ export default function ConversationPage() {
         return { generatedQuery, assistantMessageId };
       } catch (error) {
         console.error("Error sending message:", error);
+        setThinking(false);
         return null;
       }
     };
@@ -138,6 +140,7 @@ export default function ConversationPage() {
         setErrorMessage(errorMsg);
         setShowRetryEditor(true);
       }
+      setThinking(false);
     }
   };
 
@@ -157,6 +160,8 @@ export default function ConversationPage() {
       if (response.data.error) {
         // Handle error response
         const errorMsg = response.data.error;
+        setShowRetryEditor(true);
+        setErrorMessage(errorMsg);
         return errorMsg;
       }
 
@@ -192,7 +197,10 @@ export default function ConversationPage() {
       console.error("Error executing query:", error);
       const errorMsg = error.response?.data?.error || error.message || "Unknown error executing query";
       return errorMsg;
+    } finally {
+      setThinking(false);
     }
+
   };
 
   const retryGenerateQuery = async (editedPrompt: string) => {
@@ -201,6 +209,7 @@ export default function ConversationPage() {
       return;
     }
     try {
+      setThinking(true);
       setMessages(prevMessages => [...prevMessages, { id: crypto.randomUUID(), message: editedPrompt, isUser: true }]);
 
       const response = await axios.post("http://127.0.0.1:8000/nlinput", {
@@ -225,19 +234,27 @@ export default function ConversationPage() {
       });
 
       setCurrentQuery(newGeneratedQuery);
-      await executeQuery(newGeneratedQuery, assistantMessageId, editedPrompt);
-
+      const queryResult = await executeQuery(newGeneratedQuery, assistantMessageId, editedPrompt);
+      if (queryResult && queryResult !== "Query executed successfully.") {
+        const generatedRetryPrompt = generateRetryPrompt(editedPrompt, newGeneratedQuery, queryResult);
+        setRetryPrompt(generatedRetryPrompt);
+        setErrorMessage(queryResult);
+        setShowRetryEditor(true);
+      } else {
       setShowRetryEditor(false);
       setRetryPrompt("");
+      }
     } catch (error) {
       console.error("Error retrying query generation:", error);
+    } finally {
+      setThinking(false);
     }
   };
 
   return (
     <div className="flex h-screen bg-gray-950">
       {/* Sidebar */}
-      <Sidebar onNewChat={() => {
+      <Sidebar user_id={user_id} onNewChat={() => {
         setShowImportModal(true);
       }} />
       
@@ -246,8 +263,9 @@ export default function ConversationPage() {
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-4xl mx-auto space-y-4">
-            {messages.map((msg, index) => (
+            {messages.map((msg) => (
               <div key={msg.id} className="space-y-3">
+
                 <MessageBubble message={msg.message} isUser={msg.isUser} />
                 {msg.result && (
                   <div className="w-full">
@@ -262,6 +280,13 @@ export default function ConversationPage() {
                 )}
               </div>
             ))}
+
+            {thinking && (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mr-2"></div>
+                    <span className="text-gray-300">Thinking...</span>
+                  </div>
+                )}
             
             {/* Retry Editor */}
             {showRetryEditor && (

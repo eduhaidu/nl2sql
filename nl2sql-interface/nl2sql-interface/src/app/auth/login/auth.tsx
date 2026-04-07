@@ -8,13 +8,16 @@ export default function Auth() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [showRegister, setShowRegister] = useState(false);
+    const [user_id, setUserId] = useState<string | null>(null);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         const response = await axios.post("http://127.0.0.1:8000/login", { username, password });
         const token = response.data.token;
+        const userId = response.data.user_id;
+        setUserId(userId);
         localStorage.setItem("token", token);
-        router.push("/dashboard");
+        router.push(`/dashboard/${userId}`);
     };
 
     const handleRegister = async (e: React.FormEvent) => {
@@ -22,8 +25,10 @@ export default function Auth() {
         try {
             const response = await axios.post("http://127.0.0.1:8000/register", { username, password });
             const token = response.data.token;
+            const userId = response.data.user_id;
+            setUserId(userId);
             localStorage.setItem("token", token);
-            router.push("/dashboard");
+            router.push(`/dashboard/${userId}`);
         } catch (error) {
             console.error("Registration failed:", error);
         }

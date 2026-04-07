@@ -60,16 +60,18 @@ def read_root():
 @app.post("/login")
 def login(credentials: CredentialsModel):
     auth_controller = AuthController()
-    if auth_controller.authenticate_user(credentials.username, credentials.password):
-        return {"message": "Login successful"}
+    login_result = auth_controller.authenticate_user(credentials.username, credentials.password)
+    if login_result:
+        return {"message": "Login successful", "token": login_result["token"], "user_id": login_result["user_id"]}
     else:
         return {"error": "Invalid username or password"}
     
 @app.post("/register")
 def register(credentials: CredentialsModel):
     auth_controller = AuthController()
-    if auth_controller.register_user(credentials.username, credentials.password):
-        return {"message": "User registered successfully"}
+    register_result = auth_controller.register_user(credentials.username, credentials.password)
+    if register_result:
+        return {"message": "User registered successfully", "token": register_result["token"], "user_id": register_result["user_id"]}
     else:
         return {"error": "Failed to register user"}
 
@@ -101,7 +103,7 @@ def update_database_url(data: DBURLInputModel):
     
     try:
         # Create a new conversation for this database connection
-        conversation_id = create_conversation(data.database_url, data.database_type)
+        conversation_id = create_conversation(data.database_url, data.database_type, data.user_id)
         print(f"New conversation created with ID: {conversation_id}")
         # Create a new session
         session_id = session_manager.create_session(data.database_url, database_type=data.database_type, conversation_id=conversation_id)
@@ -110,8 +112,8 @@ def update_database_url(data: DBURLInputModel):
         return {"error": str(e)}
     
 @app.get("/conversations")
-def list_conversations():
-    conversations = get_conversations()
+def list_conversations(user_id: str):
+    conversations = get_conversations(user_id)
     if conversations is None:
         return {"error": "Failed to retrieve conversations."}
     return {"conversations": conversations}

@@ -1,18 +1,13 @@
 'use client';
+import { redirect } from "next/dist/server/api-utils";
 import { useState } from "react";
-import Sidebar from "./components/Sidebar";
-import ImportDBModal from "./components/ImportDBModal";
+import { useRouter } from "next/navigation";
+
 
 export default function Home() {
-  const [showImportModal, setShowImportModal] = useState(false);
-
-  return (
-    <div className="flex h-screen bg-gray-950">
-      {/* Sidebar */}
-      <Sidebar onNewChat={() => setShowImportModal(true)} />
-      
-      {/* Main Content - Welcome Screen */}
-      <main className="flex-1 flex flex-col items-center justify-center p-8">
+    const router = useRouter();
+    return (
+        <main className="flex-1 flex flex-col items-center justify-center p-8">
         <div className="max-w-2xl text-center">
           <h1 className="text-5xl font-bold mb-6 text-white">
             Welcome to NL2SQL
@@ -22,16 +17,11 @@ export default function Home() {
           </p>
           
           <div className="bg-gray-900 rounded-xl border border-gray-800 p-8 mb-8">
-            <h2 className="text-2xl font-semibold mb-4 text-white">Get Started</h2>
-            <p className="text-gray-400 mb-6">
-              Import a database to start a new conversation. Ask questions in plain English
-              and get SQL queries generated automatically.
-            </p>
             <button
-              onClick={() => setShowImportModal(true)}
+              onClick={() => router.push("/auth/login")}
               className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors text-lg"
             >
-              Import Database
+              Get Started
             </button>
           </div>
 
@@ -60,9 +50,5 @@ export default function Home() {
           </div>
         </div>
       </main>
-
-      {/* Import Database Modal */}
-      <ImportDBModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} />
-    </div>
-  );
+    )
 }

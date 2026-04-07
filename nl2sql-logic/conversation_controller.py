@@ -8,7 +8,7 @@ def test_db_connection():
     else:
         print("Database connection failed.")
 
-def create_conversation(db_url, database_type=None):
+def create_conversation(db_url, database_type=None, user_id=None):
     # Adds a new conversation to the database and returns the conversation ID
     conn = get_connection()
     if not conn:
@@ -17,8 +17,8 @@ def create_conversation(db_url, database_type=None):
     try:
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO conversations (db_url, database_type, created_at) VALUES (%s, %s, NOW()) RETURNING id;",
-            (db_url, database_type)
+            "INSERT INTO conversations (db_url, database_type, user_id, created_at) VALUES (%s, %s, %s, NOW()) RETURNING id;",
+            (db_url, database_type, user_id)
         )
         conversation_id = cursor.fetchone()[0]
         conn.commit()
@@ -29,7 +29,7 @@ def create_conversation(db_url, database_type=None):
         return None
     finally:        conn.close()
 
-def get_conversations():
+def get_conversations(user_id):
     # Retrieves a list of all conversations with their IDs and creation timestamps
     conn = get_connection()
     if not conn:
@@ -37,7 +37,7 @@ def get_conversations():
         return None
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, name, created_at FROM conversations ORDER BY created_at DESC;")
+        cursor.execute("SELECT id, name, created_at FROM conversations WHERE user_id = %s ORDER BY created_at DESC;", (user_id,))
         conversations = cursor.fetchall()
         print("Conversations:")
         for conv_id, conv_name, created_at in conversations:

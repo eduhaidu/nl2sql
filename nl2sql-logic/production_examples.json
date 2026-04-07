@@ -25,7 +25,7 @@
     },
     {
         "question": "Who are the artists that made the songs named Torn and Hero?",
-        "sql": "SELECT DISTINCT AR.Name FROM Artist AS AR\nINNER JOIN Album AS A ON AR.ArtistId = A.ArtistId\nINNER JOIN Track AS T ON A.AlbumId = T.AlbumId\nWHERE T.Name IN ('Torn', 'Hero');",
+        "sql": "SELECT DISTINCT AR.Name FROM Artist AS AR INNER JOIN Album AS A ON AR.ArtistId = A.ArtistId INNER JOIN Track AS T ON A.AlbumId = T.AlbumId WHERE T.Name IN ('Torn', 'Hero');",
         "source": "production",
         "added_at": "2026-03-16T10:26:18.995731",
         "corrected": false,
@@ -33,7 +33,7 @@
     },
     {
         "question": "Show me 5 songs made by the artist named Battlestar Galactica",
-        "sql": "SELECT DISTINCT T.Name, AR.Name AS BattlestarGalacticaName FROM Track AS T\nINNER JOIN Album AS A ON T.AlbumId = A.AlbumId\nINNER JOIN Artist AS AR ON A.ArtistId = AR.ArtistId\nWHERE AR.Name = 'Battlestar Galactica';",
+        "sql": "SELECT DISTINCT T.Name, AR.Name AS BattlestarGalacticaName FROM Track AS T INNER JOIN Album AS A ON T.AlbumId = A.AlbumId INNER JOIN Artist AS AR ON A.ArtistId = AR.ArtistId WHERE AR.Name = 'Battlestar Galactica';",
         "source": "production",
         "added_at": "2026-03-16T10:30:07.892971",
         "corrected": false,
@@ -81,15 +81,15 @@
     },
     {
         "question": "Calculate the total revenue generated from the sales of 'Tofu'.",
-        "sql": "SELECT SUM(OD.Quantity * P.UnitPrice) AS TotalRevenue FROM OrderDetails OD\nINNER JOIN Products P ON OD.ProductID = P.ProductID\nWHERE P.ProductName = 'Tofu';",
+        "sql": "SELECT SUM(OD.Quantity * P.UnitPrice) AS TotalRevenue FROM OrderDetails OD INNER JOIN Products P ON OD.ProductID = P.ProductID WHERE P.ProductName = 'Tofu';",
         "source": "production",
         "added_at": "2026-03-21T15:06:23.968992",
-        "corrected": true,
-        "original_sql": "SELECT SUM(OD.Quantity * P.Price) AS TotalRevenue FROM OrderDetails OD INNER JOIN Products P ON OD.ProductID = P.ProductID WHERE P.ProductName = 'Tofu';"
+        "corrected": false,
+        "original_sql": null
     },
     {
         "question": "Which customers have placed more than 15 orders?",
-        "sql": "SELECT COUNT(C.CustomerID) AS NumberOfOrders\nFROM Customers C\nJOIN Orders O ON C.CustomerID = O.CustomerID\nGROUP BY C.CustomerID\nHAVING COUNT(O.OrderID) > 15;",
+        "sql": "SELECT C.CompanyName, COUNT(O.OrderID) AS NumberOfOrders FROM Customers C JOIN Orders O ON C.CustomerID = O.CustomerID GROUP BY C.CustomerID HAVING COUNT(O.OrderID) > 15;",
         "source": "production",
         "added_at": "2026-03-23T16:32:59.060060",
         "corrected": true,
@@ -97,8 +97,40 @@
     },
     {
         "question": "List the top 3 suppliers based on the total revenue of the products they supply.",
-        "sql": "SELECT S.SupplierID, SUM(OD.Quantity * P.UnitPrice) AS TotalRevenue\nFROM Suppliers S\nJOIN Products P ON S.SupplierID = P.SupplierID\nJOIN OrderDetails OD ON P.ProductID = OD.ProductID\nGROUP BY S.SupplierID\nORDER BY TotalRevenue DESC\nLIMIT 3;",
+        "sql": "SELECT S.CompanyName, SUM(OD.Quantity * P.UnitPrice) AS TotalRevenue FROM Suppliers S JOIN Products P ON S.SupplierID = P.SupplierID JOIN OrderDetails OD ON P.ProductID = OD.ProductID GROUP BY S.SupplierID ORDER BY TotalRevenue DESC LIMIT 3;",
         "source": "production",
-        "added_at": "2026-03-23T17:02:22.233813"
+        "added_at": "2026-03-23T17:02:22.233813",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "What are the best-selling products by quantity?",
+        "sql": "SELECT P.ProductName, SUM(OD.Quantity * P.UnitPrice) AS TotalSales\nFROM Products P\nJOIN OrderDetails OD ON P.ProductID = OD.ProductID\nGROUP BY P.ProductName\nORDER BY TotalSales DESC\nLIMIT 1;",
+        "source": "production",
+        "added_at": "2026-03-30T18:54:36.754452",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "Who are the top 5 customers based on total purchase amount?",
+        "sql": "SELECT C.CompanyName, SUM(OD.Quantity * OD.UnitPrice) AS TotalPurchaseAmount\nFROM Customers C\nJOIN Orders O ON C.CustomerID = O.CustomerID\nJOIN OrderDetails OD ON O.OrderID = OD.OrderID\nGROUP BY C.CompanyName\nORDER BY TotalPurchaseAmount DESC\nLIMIT 5;",
+        "source": "production",
+        "added_at": "2026-03-31T16:48:29.356732",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "What are the top 5 most popular genres based on the number of tracks sold?",
+        "sql": "SELECT G.Name, COUNT(I.InvoiceLineId) AS TotalPurchases\nFROM Genre AS G\nJOIN Track AS T ON G.GenreId = T.GenreId -- Corrected the join to use Genre table with its ID linked to Tracks' genre\nJOIN InvoiceLine AS I ON T.TrackId = I.TrackId -- Ensuring we count invoice lines, which relate individual track sales\nGROUP BY G.Name\nORDER BY TotalPurchases DESC\nLIMIT 5;",
+        "source": "production",
+        "added_at": "2026-04-06T13:46:12.654417",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "How many tracks are there in each genre? Show the results from most to least.",
+        "sql": "SELECT G.Name, COUNT(T.TrackId) AS TotalTracks -- Assuming Track table is named T and Genre table is named G in schema\nFROM Genre AS G\nJOIN Track AS T ON G.GenreId = T.GenreId -- Corrected the join condition based on common key between Genre and Track tables\nGROUP BY G.Name\nORDER BY TotalTracks DESC\nLIMIT 5;",
+        "source": "production",
+        "added_at": "2026-04-06T14:53:01.301381"
     }
 ]

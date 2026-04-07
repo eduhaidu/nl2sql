@@ -250,10 +250,19 @@ class PromptManager:
             if isinstance(table_data, dict) and 'columns' in table_data:
                 columns = table_data['columns']
                 table_description = table_data.get('description', '')
+                table_role_label = table_data.get('role_label', '')
+                table_role_confidence = table_data.get('role_confidence', None)
+
+                role_suffix = ""
+                if table_role_label and table_role_confidence is not None:
+                    role_suffix = f" [role: {table_role_label}, confidence: {table_role_confidence}]"
+                elif table_role_label:
+                    role_suffix = f" [role: {table_role_label}]"
+
                 if table_description:
-                    formatted += f"Table: {table_display} - {table_description}\n"
+                    formatted += f"Table: {table_display}{role_suffix} - {table_description}\n"
                 else:
-                    formatted += f"Table: {table_display}\n"
+                    formatted += f"Table: {table_display}{role_suffix}\n"
             else:
                 # Handle old schema structure: [columns_list]
                 columns = table_data
@@ -280,7 +289,26 @@ class PromptManager:
             fallback_items = list(self.schema.items())[:5]
             filtered_schema = dict(fallback_items)
         formatted_schema = self.format_filtered_schema(filtered_schema)
+        disambiguation_notes = []
+        for table_name, table_data in filtered_schema.items():
+            if isinstance(table_data, dict):
+                role_label = table_data.get('role_label')
+                role_reason = table_data.get('role_reason')
+                if role_label:
+                    note = f"- {table_name}: {role_label}"
+                    if role_reason:
+                        note += f" ({role_reason})"
+                    disambiguation_notes.append(note)
+
         prompt = f"Question: {nl_input}\n\nSchema (columns in [brackets] require quoting in SQL):\n{formatted_schema}\n\n"
+        if disambiguation_notes:
+            prompt += "Table role guidance:\n"
+            prompt += "\n".join(disambiguation_notes) + "\n\n"
+            prompt += (
+                "Selection rules: use header/master tables for document-level filters and totals, "
+                "use detail/line-item tables for product/item/quantity/unit-price analysis, "
+                "and join header + detail tables when both dimensions are needed.\n\n"
+            )
 
         examples = self.select_relevant_examples(nl_input)
         if examples:
@@ -328,6 +356,17 @@ class PromptManager:
             compact_history = compact_history[-max_items:]
 
         return [self.system_prompt] + compact_history + [{"role": "user", "content": prompt}]
+
+    def _log_full_prompt(self, request_messages):
+        """Log the exact message payload sent to the model for debugging."""
+        try:
+            payload = json.dumps(request_messages, indent=2)
+        except Exception:
+            payload = str(request_messages)
+
+        print("\n=== MODEL REQUEST PAYLOAD START ===")
+        print(payload)
+        print("=== MODEL REQUEST PAYLOAD END ===\n")
     
     def load_conversation_history(self, history_tuples):
         """Load conversation history from PostgreSQL format [(message, sender, timestamp), ...]"""
@@ -346,6 +385,7 @@ class PromptManager:
     def get_response(self, nl_input):
         self.nl_input = nl_input
         request_messages = self._build_request_messages(nl_input)
+        self._log_full_prompt(request_messages)
 
         response = self.client.chat(
             model=self.model_name,

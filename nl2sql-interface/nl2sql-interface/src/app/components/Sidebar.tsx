@@ -6,14 +6,16 @@ import { useRouter, usePathname } from 'next/navigation';
 interface Conversation {
   id: string;
   name: string | null;
+  user_id: string | null;
   created_at: string;
 }
 
 interface SidebarProps {
   onNewChat: () => void;
+  user_id: string | null;
 }
 
-export default function Sidebar({ onNewChat }: SidebarProps) {
+export default function Sidebar({ onNewChat, user_id }: SidebarProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showEditOptions, setShowEditOptions] = useState<string | null>(null);
@@ -22,7 +24,9 @@ export default function Sidebar({ onNewChat }: SidebarProps) {
 
   const fetchConversations = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:8000/conversations');
+      const response = await axios.get('http://127.0.0.1:8000/conversations', {
+        params: { user_id }
+      });
       setConversations(response.data.conversations.map((conv: any) => ({
         id: conv[0],
         name: conv[1],
