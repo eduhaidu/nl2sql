@@ -1,23 +1,25 @@
 'use client';
-import { useState } from "react";
+import { useState, useEffect, use } from "react";
 import Sidebar from "../../components/Sidebar";
 import ImportDBModal from "../../components/ImportDBModal";
 import { useRouter } from "next/navigation";
 
-export default function Dashboard() {
+export default function Dashboard(props: {
+  params: Promise<{ userId: string }>
+}) {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const router = useRouter();
-  const token = localStorage.getItem("token");
-  // Extract user_id from the URL
-  const pathname = window.location.pathname;
-  const user_id = pathname.split("/")[2]; // Assuming URL is /dashboard/{user_id}
+  const params = use(props.params);
+  const user_id = params.userId;
 
-  if (!token) {
-    // If no token is found, redirect to login page
-    router.push("/auth/login");
-    return null; // Render nothing while redirecting
-  }
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      // If no token is found, redirect to login page
+      router.push("/auth/login");
+    }
+  }, [router]);
 
   return (
     <div className="flex h-screen bg-gray-950">

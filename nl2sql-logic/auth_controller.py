@@ -1,6 +1,6 @@
 from postgres_connection import get_connection
 from hash_password import hash_password
-import jwcrypto
+import jwt
 import dotenv
 class AuthController:
     def __init__(self):
@@ -17,10 +17,10 @@ class AuthController:
             result = cursor.fetchone()
             if result and result[0] == hash_password(password):
                 print(f"User {username} authenticated successfully.")
-                token = jwcrypto.jwt.JWT(header={"alg": "HS256"}, claims={"username": username}).make_signed_token(jwcrypto.jwk.JWK.from_password(dotenv.get_key(".env", "JWT_SECRET_KEY")))
+                token = jwt.encode({"username": username}, dotenv.get_key(".env", "JWT_SECRET_KEY"), algorithm="HS256")
                 user_id = self.get_user_id(username)
-                print(f"Generated JWT token for user {username}: {token.serialize()}")
-                return {"message": "Authentication successful", "token": token.serialize(), "user_id": user_id}
+                print(f"Generated JWT token for user {username}: {token}")
+                return {"message": "Authentication successful", "token": token, "user_id": user_id}
             else:
                 print(f"Authentication failed for user {username}.")
                 return False
@@ -45,10 +45,10 @@ class AuthController:
             cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s);", (username, hashed_password))
             conn.commit()
             print(f"User {username} registered successfully.")
-            token = jwcrypto.jwt.JWT(header={"alg": "HS256"}, claims={"username": username}).make_signed_token(jwcrypto.jwk.JWK.from_password(dotenv.get_key(".env", "JWT_SECRET_KEY")))
+            token = jwt.encode({"username": username}, dotenv.get_key(".env", "JWT_SECRET_KEY"), algorithm="HS256")
             user_id = self.get_user_id(username)
-            print(f"Generated JWT token for new user {username} (ID: {user_id}): {token.serialize()}")
-            return {"message": "Registration successful", "token": token.serialize(), "user_id": user_id}
+            print(f"Generated JWT token for new user {username} (ID: {user_id}): {token}")
+            return {"message": "Registration successful", "token": token, "user_id": user_id}
         except Exception as e:
             print(f"Error during registration: {e}")
             return False

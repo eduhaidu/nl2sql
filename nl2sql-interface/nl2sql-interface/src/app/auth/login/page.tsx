@@ -17,6 +17,7 @@ export default function Auth() {
         const userId = response.data.user_id;
         setUserId(userId);
         localStorage.setItem("token", token);
+        localStorage.setItem("user_id", userId);
         router.push(`/dashboard/${userId}`);
     };
 
@@ -28,6 +29,7 @@ export default function Auth() {
             const userId = response.data.user_id;
             setUserId(userId);
             localStorage.setItem("token", token);
+            localStorage.setItem("user_id", userId);
             router.push(`/dashboard/${userId}`);
         } catch (error) {
             console.error("Registration failed:", error);

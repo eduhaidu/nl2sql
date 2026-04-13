@@ -1,6 +1,5 @@
 'use client';
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useState, useEffect, use } from "react";
 import axios from "axios";
 import Sidebar from "../../components/Sidebar";
 import MessageBubble from "../../components/MessageBubble";
@@ -27,8 +26,10 @@ ${errorMessage}
 Please generate a corrected SQL query that fixes this error.`;
 }
 
-export default function ConversationPage(user_id: string | null) {
-  const params = useParams();
+export default function ConversationPage(props: {
+  params: Promise<{ id: string }>
+}) {
+  const params = use(props.params);
   const conversationId = params.id as string;
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -40,7 +41,16 @@ export default function ConversationPage(user_id: string | null) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [thinking, setThinking] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    setUserId(localStorage.getItem("user_id"));
+    if (!token) {
+      // If no token is found, redirect to login page
+      window.location.href = "/auth/login";
+    }
+  }, []);
   // Load conversation history on mount
   useEffect(() => {
     const loadConversation = async () => {
@@ -254,7 +264,7 @@ export default function ConversationPage(user_id: string | null) {
   return (
     <div className="flex h-screen bg-gray-950">
       {/* Sidebar */}
-      <Sidebar user_id={user_id} onNewChat={() => {
+      <Sidebar user_id={userId} onNewChat={() => {
         setShowImportModal(true);
       }} />
       
