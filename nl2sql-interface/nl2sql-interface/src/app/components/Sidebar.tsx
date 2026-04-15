@@ -23,6 +23,12 @@ export default function Sidebar({ onNewChat, user_id }: SidebarProps) {
   const pathname = usePathname();
 
   const fetchConversations = async () => {
+    if (!user_id) {
+      setConversations([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await axios.get('http://127.0.0.1:8000/conversations', {
         params: { user_id }
@@ -43,25 +49,26 @@ export default function Sidebar({ onNewChat, user_id }: SidebarProps) {
     if (!confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
       return;
     }
-    try{
+
+    try {
       await axios.delete(`http://127.0.0.1:8000/conversations/${conversationId}`);
       fetchConversations();
-      // If the deleted conversation is currently open, navigate back to home
+
       if (pathname === `/conversations/${conversationId}`) {
         router.push('/');
       }
-    }
-    catch(error){
+    } catch (error) {
       console.error('Error deleting conversation:', error);
       alert('Failed to delete conversation. Please try again.');
     }
-  }
+  };
 
   const handleRenameConversation = async (conversationId: string) => {
     const newName = prompt('Enter a new name for this conversation:');
     if (!newName) {
       return;
     }
+
     try {
       await axios.put(`http://127.0.0.1:8000/conversations/${conversationId}`, { name: newName });
       fetchConversations();
@@ -69,11 +76,11 @@ export default function Sidebar({ onNewChat, user_id }: SidebarProps) {
       console.error('Error renaming conversation:', error);
       alert('Failed to rename conversation. Please try again.');
     }
-  }
+  };
 
   useEffect(() => {
     fetchConversations();
-  }, []);
+  }, [user_id]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -83,11 +90,13 @@ export default function Sidebar({ onNewChat, user_id }: SidebarProps) {
 
     if (date.toDateString() === today.toDateString()) {
       return 'Today';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
+
+    if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    }
+
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   const getCurrentConversationId = () => {
@@ -99,7 +108,6 @@ export default function Sidebar({ onNewChat, user_id }: SidebarProps) {
 
   return (
     <aside className="w-64 bg-gray-900 h-screen flex flex-col border-r border-gray-800">
-      {/* Header */}
       <div className="p-4 border-b border-gray-800">
         <button
           onClick={onNewChat}
@@ -110,7 +118,6 @@ export default function Sidebar({ onNewChat, user_id }: SidebarProps) {
         </button>
       </div>
 
-      {/* Conversations List */}
       <div className="flex-1 overflow-y-auto p-2">
         {loading ? (
           <div className="text-gray-500 text-center py-4">Loading...</div>
@@ -138,25 +145,37 @@ export default function Sidebar({ onNewChat, user_id }: SidebarProps) {
                       {formatDate(conv.created_at)}
                     </div>
                   </button>
-                  <button 
-                    onClick={(e)=>{e.stopPropagation(); setShowEditOptions(showEditOptions === conv.id ? null : conv.id)}} 
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowEditOptions(showEditOptions === conv.id ? null : conv.id);
+                    }}
                     className={`px-2 py-2 text-gray-500 hover:text-white rounded-lg transition-colors ${
                       showEditOptions === conv.id ? 'bg-gray-800' : 'hover:bg-gray-800'
                     }`}
                   >
-                    ⋮ 
+                    ⋮
                   </button>
                 </div>
+
                 {showEditOptions === conv.id && (
                   <div className="ml-4 mt-1 flex gap-2 pb-2">
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleRenameConversation(conv.id); setShowEditOptions(null); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRenameConversation(conv.id);
+                        setShowEditOptions(null);
+                      }}
                       className="text-xs text-gray-400 hover:text-white transition-colors"
                     >
                       Rename
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id); setShowEditOptions(null); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteConversation(conv.id);
+                        setShowEditOptions(null);
+                      }}
                       className="text-xs text-red-400 hover:text-red-300 transition-colors"
                     >
                       Delete

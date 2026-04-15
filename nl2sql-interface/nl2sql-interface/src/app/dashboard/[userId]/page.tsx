@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, use } from "react";
-import Sidebar from "../../components/Sidebar";
+import Sidebar from "@/app/components/Sidebar";
 import ImportDBModal from "../../components/ImportDBModal";
 import { useRouter } from "next/navigation";
 

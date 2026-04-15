@@ -1,10 +1,11 @@
 'use client';
 import { useState, useEffect, use } from "react";
 import axios from "axios";
-import Sidebar from "../../components/Sidebar";
+import Sidebar from "@/app/components/Sidebar";
 import MessageBubble from "../../components/MessageBubble";
 import ResultTable from "../../components/ResultTable";
 import ImportDBModal from "@/app/components/ImportDBModal";
+import { useRouter } from "next/navigation";
 
 interface Message {
   id: string;
@@ -42,15 +43,19 @@ export default function ConversationPage(props: {
   const [showImportModal, setShowImportModal] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    setUserId(localStorage.getItem("user_id"));
+    const storedUserId = localStorage.getItem("user_id");
+    setUserId(storedUserId);
     if (!token) {
       // If no token is found, redirect to login page
-      window.location.href = "/auth/login";
+      router.push("/auth/login");
     }
   }, []);
+
   // Load conversation history on mount
   useEffect(() => {
     const loadConversation = async () => {
@@ -267,6 +272,44 @@ export default function ConversationPage(props: {
       <Sidebar user_id={userId} onNewChat={() => {
         setShowImportModal(true);
       }} />
+
+      {/*Profile Icon */}
+      <div className="relative">
+        <button
+          onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+          className="absolute bottom-4 left-4 bg-gray-800 rounded-full p-2 focus:outline-none"
+        >
+          <svg
+            className="w-6 h-6 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+          </svg>
+        </button>
+
+        {/* Options Menu */}
+        {showOptionsMenu && (
+          <div className="absolute top-12 right-4 bg-gray-800 rounded-lg shadow-lg py-2 w-48 z-10">
+            <button
+              onClick={() => {
+                localStorage.removeItem("token");
+                router.push("/auth/login");
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-400 hover:bg-gray-700 hover:text-white rounded-lg transition-colors"
+            >
+              Logout
+            </button>
+          </div>
+        )}
+      </div>
       
       {/* Main Chat Area */}
       <main className="flex-1 flex flex-col">

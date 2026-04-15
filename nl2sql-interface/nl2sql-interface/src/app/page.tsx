@@ -1,11 +1,18 @@
 'use client';
-import { redirect } from "next/dist/server/api-utils";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { use, useEffect } from "react";
 
 
 export default function Home() {
     const router = useRouter();
+    useEffect(() => {
+        const token = localStorage.getItem("token");
+        if (token) {
+            const userId = localStorage.getItem("user_id");
+            router.push(`/dashboard/${userId}`);
+            return;
+        } 
+    }, []);
     return (
         <main className="flex-1 flex flex-col items-center justify-center p-8">
         <div className="max-w-2xl text-center">
