@@ -131,6 +131,46 @@
         "question": "How many tracks are there in each genre? Show the results from most to least.",
         "sql": "SELECT G.Name, COUNT(T.TrackId) AS TotalTracks -- Assuming Track table is named T and Genre table is named G in schema\nFROM Genre AS G\nJOIN Track AS T ON G.GenreId = T.GenreId -- Corrected the join condition based on common key between Genre and Track tables\nGROUP BY G.Name\nORDER BY TotalTracks DESC\nLIMIT 5;",
         "source": "production",
-        "added_at": "2026-04-06T14:53:01.301381"
+        "added_at": "2026-04-06T14:53:01.301381",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "Show me all the employees hired after 2003",
+        "sql": "SELECT * FROM Employee WHERE HireDate > '2003-01-01';",
+        "source": "production",
+        "added_at": "2026-04-18T14:00:23.093585",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "How many tracks does each playlist contain?",
+        "sql": "SELECT P.Name AS PlaylistName, COUNT(PT.TrackId) AS TotalTracks\nFROM Playlist AS P\nJOIN PlaylistTrack AS PT ON P.PlaylistId = PT.PlaylistId -- Join between Playlist and its associated tracks through the bridge table\nGROUP BY P.Name\nORDER BY TotalTracks DESC;",
+        "source": "production",
+        "added_at": "2026-04-18T14:01:48.269653",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "What is the total revenue generated from sales in each country?",
+        "sql": "SELECT I.BillingCountry, SUM(IL.UnitPrice * IL.Quantity) AS TotalRevenueCount\nFROM InvoiceLine IL\nJOIN Invoice I ON IL.InvoiceId = I.InvoiceId -- Join invoice line details with the main invoice table using common key (InvoiceId)\nGROUP BY I.BillingCountry\nORDER BY SUM(IL.UnitPrice * IL.Quantity) DESC;",
+        "source": "production",
+        "added_at": "2026-04-18T14:10:28.850776",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "Which artist has the most albums?",
+        "sql": "SELECT A.Name, COUNT(*) AS AlbumCount\nFROM Album AS A\nJOIN Artist AS AR ON A.ArtistId = AR.ArtistId -- Join Albums with their respective artists using common key (ArtistId)\nGROUP BY A.ArtistId\nORDER BY AlbumCount DESC LIMIT 1;",
+        "source": "production",
+        "added_at": "2026-04-18T14:13:10.528932",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "What are the longest tracks in each genre?",
+        "sql": "SELECT G.Name AS GenreName, MAX(T.Milliseconds) AS LongestTrackDuration, T.Name AS TrackName\nFROM Genre AS G\nJOIN Track AS T ON G.GenreId = T.GenreId -- Ensure the join is between genre and track using common key (GenreId) for duration comparison\nGROUP BY G.Name;",
+        "source": "production",
+        "added_at": "2026-04-18T14:24:45.650085"
     }
 ]

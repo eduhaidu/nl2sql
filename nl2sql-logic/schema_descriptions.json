@@ -1,0 +1,51 @@
+{
+  "employees": {
+    "description": "Employee master data with names, titles, and hire dates. Use this table to FILTER by employee name. Always join Orders to Employees via EmployeeID when filtering by employee. IMPORTANT: Use only first_name and last_name columns to find employees, NOT ContactName.",
+    "key_columns": {
+      "EmployeeID": "Unique employee identifier - use to join with Orders",
+      "FirstName": "Employee first name - use to find 'Nancy' in 'Nancy Davolio'",
+      "LastName": "Employee last name - use to find 'Davolio' in 'Nancy Davolio'",
+      "Title": "Job title (e.g., Sales Manager, Sales Representative)"
+    },
+    "common_queries": [
+      "Finding employees by name",
+      "Counting orders by employee",
+      "Employee performance analysis"
+    ],
+    "notes": "Do NOT join with Customers table. Employees and Customers are separate entities."
+  },
+  "orders": {
+    "description": "Sales orders containing OrderID, CustomerID, EmployeeID, and OrderDate. Use this table for ORDER COUNT, date filtering, and joining with Employees. Each row is ONE order, count OrderID to get number of orders.",
+    "key_columns": {
+      "OrderID": "Unique order identifier - COUNT this to find number of orders",
+      "EmployeeID": "References Employees table - use to link orders to employees",
+      "CustomerID": "References Customers table - use to link orders to customers",
+      "OrderDate": "Date order was placed - use STRFTIME('%Y', OrderDate) = '1997' for year filtering"
+    },
+    "common_queries": [
+      "Count orders by employee",
+      "Orders in specific year",
+      "Orders by customer"
+    ],
+    "notes": "Each row = one order. Use ORDER_DETAILS table only if you need product-level data. Do NOT count CustomerID for order counts."
+  },
+  "customers": {
+    "description": "Customer master data with company info and contact details. Use ONLY when question asks about customers, NOT employees. Completely separate from Employees table.",
+    "key_columns": {
+      "CustomerID": "Unique customer identifier",
+      "CompanyName": "Customer company name",
+      "ContactName": "Customer contact person name - different from employee names"
+    },
+    "notes": "IMPORTANT: ContactName is a CUSTOMER, not an EMPLOYEE. Do NOT use this to find employees like 'Nancy Davolio'."
+  },
+  "order_details": {
+    "description": "Line items within orders - contains product quantities and prices. Use ONLY if question asks about products, quantities per order, or order amounts. Do NOT use for simple order counts or date filtering.",
+    "key_columns": {
+      "OrderID": "References Orders table",
+      "ProductID": "References Products table",
+      "Quantity": "Quantity ordered",
+      "UnitPrice": "Price per unit"
+    },
+    "notes": "One row per product per order. Creating unnecessary joins here is a common mistake. Only use if absolutely needed."
+  }
+}

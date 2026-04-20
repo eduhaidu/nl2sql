@@ -30,7 +30,7 @@ export default function Dashboard(props: {
       <div className="relative">
         <button
           onClick={() => setShowOptionsMenu(!showOptionsMenu)}
-          className="absolute top-4 right-4 bg-gray-800 rounded-full p-2 focus:outline-none"
+          className="absolute bottom-4 left-4 bg-gray-800 rounded-full p-2 focus:outline-none"
         >
           <svg
             className="w-6 h-6 text-white"

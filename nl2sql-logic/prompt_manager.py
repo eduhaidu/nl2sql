@@ -31,6 +31,8 @@ class PromptManager:
             "7. Always answer ONLY the latest user question in the current turn.\n"
             "8. If the required table/column is missing from schema context, return the safest valid SQL based only on provided schema.\n"
             "9. Your entire response should be executable SQL - nothing else.\n"
+            "10. ONLY use the tables mentioned in the schema descriptions. NEVER use tables that aren't explicitly recommended for the question type.\n"
+            "11. Do NOT create unnecessary joins. Each join must serve a specific purpose stated in the question.\n"
         )
         context_prompt += "\n" + rules_prompt
         if self.database_type:
@@ -50,11 +52,16 @@ class PromptManager:
         # Safety check: ensure schema is a dictionary
         if not isinstance(self.schema, dict) or not self.schema:
             return {}
-            
+
         model = self.model if hasattr(self, 'model') else SentenceTransformer('all-MiniLM-L6-v2')
         nl_embedding = model.encode(nl_input, convert_to_tensor=True)
 
+        # Load manual descriptions if available
+        manual_descriptions = self._load_manual_descriptions()
+
         relevant_tables = {}
+        table_scores = []
+
         for table_name, table_data in self.schema.items():
             # Handle new schema structure: {'description': ..., 'columns': [...]}
             if isinstance(table_data, dict) and 'columns' in table_data:
@@ -64,25 +71,53 @@ class PromptManager:
                 # Handle old schema structure: [columns_list]
                 columns = table_data
                 table_description = ''
-            
+
             column_names = [col['name'] for col in columns if 'name' in col]
             table_text = table_name + ' ' + ' '.join(column_names)
-            
-            # Add table description to semantic search
-            if table_description:
+
+            # Prioritize manual descriptions over auto-generated ones
+            if table_name in manual_descriptions:
+                table_text += ' ' + manual_descriptions[table_name].get('description', '')
+                table_text += ' ' + ' '.join(manual_descriptions[table_name].get('common_queries', []))
+            elif table_description:
                 table_text += ' ' + table_description
-            
+
             # Add column descriptions to semantic search
             for col in columns:
                 if 'name' in col and 'description' in col:
                     table_text += ' ' + col['description']
-            
-            table_embedding = model.encode(table_text, convert_to_tensor=True)
 
+            table_embedding = model.encode(table_text, convert_to_tensor=True)
             similarity = util.pytorch_cos_sim(nl_embedding, table_embedding).item()
-            if similarity > 0.5:  # Threshold can be adjusted
+
+            table_scores.append((similarity, table_name, table_data))
+
+        # Sort by similarity and apply stricter threshold
+        table_scores.sort(key=lambda x: x[0], reverse=True)
+
+        # Keep top 3-4 tables or those above 0.5 similarity
+        for similarity, table_name, table_data in table_scores[:4]:
+            if similarity > 0.4:  # Slightly lower threshold but with ranking
                 relevant_tables[table_name] = table_data
+
+        # Fallback: if we got nothing, take top 2
+        if not relevant_tables and table_scores:
+            for similarity, table_name, table_data in table_scores[:2]:
+                relevant_tables[table_name] = table_data
+
         return relevant_tables
+
+    def _load_manual_descriptions(self):
+        """Load manual table descriptions if available"""
+        import json
+        import os
+        try:
+            if os.path.exists('schema_descriptions.json'):
+                with open('schema_descriptions.json', 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            print(f"Note: Could not load manual descriptions: {e}")
+        return {}
     
     
     def select_relevant_static_examples(self, nl_input, example_count=2):
@@ -289,8 +324,26 @@ class PromptManager:
             fallback_items = list(self.schema.items())[:5]
             filtered_schema = dict(fallback_items)
         formatted_schema = self.format_filtered_schema(filtered_schema)
+
+        # Load manual descriptions for better table guidance
+        manual_descriptions = self._load_manual_descriptions()
+
         disambiguation_notes = []
+
+        # First, add manual descriptions if available
+        for table_name in filtered_schema.keys():
+            if table_name in manual_descriptions:
+                manual_desc = manual_descriptions[table_name]
+                notes = f"- {table_name}: {manual_desc.get('description', '')}"
+                if 'notes' in manual_desc:
+                    notes += f"\n  Notes: {manual_desc['notes']}"
+                disambiguation_notes.append(notes)
+
+        # Then add role-based guidance from schema processor
         for table_name, table_data in filtered_schema.items():
+            # Skip if we already added manual description
+            if table_name in manual_descriptions:
+                continue
             if isinstance(table_data, dict):
                 role_label = table_data.get('role_label')
                 role_reason = table_data.get('role_reason')
@@ -302,12 +355,14 @@ class PromptManager:
 
         prompt = f"Question: {nl_input}\n\nSchema (columns in [brackets] require quoting in SQL):\n{formatted_schema}\n\n"
         if disambiguation_notes:
-            prompt += "Table role guidance:\n"
+            prompt += "TABLE SELECTION GUIDE:\n"
             prompt += "\n".join(disambiguation_notes) + "\n\n"
             prompt += (
-                "Selection rules: use header/master tables for document-level filters and totals, "
-                "use detail/line-item tables for product/item/quantity/unit-price analysis, "
-                "and join header + detail tables when both dimensions are needed.\n\n"
+                "CRITICAL: \n"
+                "- Use only the tables listed above\n"
+                "- Do NOT create joins unless the question requires multiple tables\n"
+                "- If finding employees by name, use FirstName + LastName columns, NOT ContactName\n"
+                "- ContactName belongs to Customers table, NOT Employees\n\n"
             )
 
         examples = self.select_relevant_examples(nl_input)
