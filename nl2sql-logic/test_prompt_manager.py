@@ -19,7 +19,7 @@ class TestPromptManager(unit_tests.UnitTests):
     def test_filter_relevant_tables(self):
         prompt_manager = PromptManager()
         context = prompt_manager._initialize_context()
-        relevant_tables = prompt_manager.filter_relevant_tables(context, "What is the total sales for last month?")
+        relevant_tables = prompt_manager.filter_relevant_tables("What is the total sales for last month?")
         self.assertIsNotNone(relevant_tables)
 
     def test_get_response(self):
