@@ -13,6 +13,12 @@ class AuthController:
             return False
         try:
             cursor = conn.cursor()
+            if not username or not password:
+                print("Username or password cannot be empty.")
+                return False 
+            if self.check_sql_injection(username) or self.check_sql_injection(password):
+                print("SQL injection attempt detected. Authentication failed.")
+                return False
             cursor.execute("SELECT password FROM users WHERE username = %s;", (username,))
             result = cursor.fetchone()
             if result and result[0] == hash_password(password):
@@ -61,6 +67,12 @@ class AuthController:
             return None
         try:
             cursor = conn.cursor()
+            if not username:
+                print("Username cannot be empty.")
+                return None
+            if self.check_sql_injection(username):
+                print("SQL injection attempt detected. Cannot retrieve user ID.")
+                return None
             cursor.execute("SELECT id FROM users WHERE username = %s;", (username,))
             result = cursor.fetchone()
             if result:
@@ -78,3 +90,27 @@ class AuthController:
         # In a real application, you would implement token blacklisting or expiration to handle logout
         print(f"User logged out with token: {token}")
         return {"message": "Logout successful"}
+    
+    def refresh_token(self, token):
+        try:
+            decoded = jwt.decode(token, dotenv.get_key(".env", "JWT_SECRET_KEY"), algorithms=["HS256"])
+            username = decoded.get("username")
+            if username:
+                new_token = jwt.encode({"username": username}, dotenv.get_key(".env", "JWT_SECRET_KEY"), algorithm="HS256")
+                print(f"Token refreshed for user {username}: {new_token}")
+                return {"message": "Token refreshed", "token": new_token}
+            else:
+                print("Invalid token: username not found.")
+                return False
+        except jwt.ExpiredSignatureError:
+            print("Token has expired.")
+            return False
+        except jwt.InvalidTokenError:
+            print("Invalid token.")
+            return False
+        
+    def check_sql_injection(self, input_string):
+        if " OR " in input_string or ";" in input_string or "--" in input_string:
+            print("SQL injection attempt detected.")
+            return True
+        return False

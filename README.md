@@ -1,7 +1,6 @@
-# ChatQL Logic
+# What is ChatQL?
 
-ChatQL Logic is the backend service for a conversational Natural Language to SQL system.
-It accepts natural language questions, generates SQL with an LLM, executes safe read queries,
+ChatQL is a complete conversational Natural Language to SQL system. It accepts natural language questions, generates SQL with an LLM, executes safe read queries,
 and stores conversation history, feedback, and cached results.
 
 ## What this service does

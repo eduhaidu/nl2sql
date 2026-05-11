@@ -1,0 +1,36 @@
+{
+  "timestamp": "20260430_201152",
+  "summary": {
+    "total_tests": 2,
+    "execution_success_rate": 1.0,
+    "exact_match_rate": 0.0,
+    "result_match_rate": 0.5,
+    "avg_semantic_similarity": 0.625
+  },
+  "results": [
+    {
+      "test_id": 0,
+      "db_id": "concert_singer",
+      "question": "How many singers do we have?",
+      "expected_sql": "SELECT count(*) FROM singer",
+      "generated_sql": "SELECT COUNT(*) FROM singer;",
+      "execution_success": true,
+      "error_message": null,
+      "exact_match": false,
+      "result_match": true,
+      "semantic_match": 1.0
+    },
+    {
+      "test_id": 1,
+      "db_id": "concert_singer",
+      "question": "What is the total number of singers?",
+      "expected_sql": "SELECT count(*) FROM singer",
+      "generated_sql": "SELECT COUNT(DISTINCT Singer_ID) FROM singer_in_concert;",
+      "execution_success": true,
+      "error_message": null,
+      "exact_match": false,
+      "result_match": false,
+      "semantic_match": 0.25
+    }
+  ]
+}

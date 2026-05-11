@@ -1,10 +1,14 @@
 import ollama
 import json
 import re
+import os
 from example_manager import ExampleManager
 from sentence_transformers import SentenceTransformer, util
 
 class PromptManager:
+    _shared_model = None
+    _shared_model_device = None
+
     def __init__(self, nl_input="", model_name='nl2sql', schema=None, database_type='sqlite'):
         self.nl_input = nl_input
         self.model_name = model_name
@@ -46,7 +50,18 @@ class PromptManager:
 
     def initialize_sentence_transformer(self):
         """Initialize the sentence transformer model for semantic search"""
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        if PromptManager._shared_model is None:
+            # Default to CPU for stability in long-running benchmark batches.
+            preferred_device = os.getenv("SENTENCE_TRANSFORMER_DEVICE", "cpu")
+            try:
+                PromptManager._shared_model = SentenceTransformer('all-MiniLM-L6-v2', device=preferred_device)
+                PromptManager._shared_model_device = preferred_device
+            except Exception:
+                # Fallback to CPU if preferred device (for example MPS) fails.
+                PromptManager._shared_model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+                PromptManager._shared_model_device = 'cpu'
+
+        self.model = PromptManager._shared_model
 
     def filter_relevant_tables(self, nl_input):
         # Safety check: ensure schema is a dictionary

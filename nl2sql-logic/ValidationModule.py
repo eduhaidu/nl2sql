@@ -1,7 +1,6 @@
 from prompt_manager import PromptManager
 from schema_processor import SchemaProcessor
 from SQLAlchemySession import SQLAlchemySession
-from QueryExtractor import extract_sql_query
 
 class Validator:
     def __init__(self, sqlalchemy_session=None, prompt_manager=None, schema_processor=None):

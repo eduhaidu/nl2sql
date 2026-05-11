@@ -57,6 +57,10 @@ def check_if_query_uses_schema(query, schema_info):
 def read_root():
     return {"Hello": "World", "active_sessions": len(session_manager.sessions)}
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "active_sessions": len(session_manager.sessions)}
+
 @app.post("/login")
 def login(credentials: CredentialsModel):
     auth_controller = AuthController()
@@ -110,6 +114,10 @@ def update_database_url(data: DBURLInputModel):
         return {"message": "Database URL updated and session created.", "session_id": session_id, "conversation_id": conversation_id}
     except ValueError as e:
         return {"error": str(e)}
+    except RuntimeError as e:
+        return {"error": f"Runtime error while creating session: {e}"}
+    except Exception as e:
+        return {"error": f"Unexpected error while creating session: {e}"}
     
 @app.get("/conversations")
 def list_conversations(user_id: str):
