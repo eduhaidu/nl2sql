@@ -7,7 +7,7 @@ class TestSchemaProcessor(unit_tests.UnitTests):
 
     def test_process_schema(self):
         schema_processor = SchemaProcessor()
-        processed_schema = schema_processor.process_schema("CREATE TABLE sales (id INT, amount FLOAT, date DATE);")
+        processed_schema = schema_processor.process_schema()
         self.assertIsNotNone(processed_schema)
 
 if __name__ == '__main__':    unit_tests.main()
