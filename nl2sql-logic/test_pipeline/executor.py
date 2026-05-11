@@ -137,8 +137,11 @@ class BackendClient:
             return ""
 
         text = sql_text.strip()
-        text = re.sub(r"^```(?:sql)?\s*", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"\s*```$", "", text)
+        # Limit the amount of whitespace matched to avoid catastrophic backtracking
+        # (protect against ReDoS on very large inputs).
+        MAX_WRAP_WS = 1000
+        text = re.sub(rf"^```(?:sql)?\s{{0,{MAX_WRAP_WS}}}", "", text, flags=re.IGNORECASE)
+        text = re.sub(rf"\s{{0,{MAX_WRAP_WS}}}```$", "", text)
 
         if "SELECT" in text.upper():
             start = text.upper().find("SELECT")
