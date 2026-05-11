@@ -33,6 +33,11 @@ class SchemaProcessor:
     
     def needs_escape(self, name):
         import re
+        if name is None:
+            return False
+        name = str(name)
+        if not name:
+            return False
         return bool(re.search(r'[\s\(\)%\-/\#@\$]', name)) or name[0].isdigit()
     
     def format_schema_for_model(self, schema_info):
@@ -58,12 +63,20 @@ class SchemaProcessor:
         for table_name, columns in schema_info.items():
             print(f"Table: {table_name}")
             for column in columns:
+                if 'foreign_keys' in column and isinstance(column['foreign_keys'], list):
+                    for fk in column['foreign_keys']:
+                        fk_col = fk.get('column', 'unknown')
+                        fk_ref = fk.get('references', 'unknown')
+                        print(f"  Foreign Key: {fk_col} -> {fk_ref}")
+                    continue
+                if 'name' not in column:
+                    continue
                 col_name = column['name']
                 if(self.needs_escape(col_name)):
                     display_name = f"[{col_name}]"
                 else:
                     display_name = col_name
-                print(f"  Column: {display_name}, Type: {column['type']}, Nullable: {column['nullable']}, Primary Key: {column['primary_key']}")
+                print(f"  Column: {display_name}, Type: {column.get('type')}, Nullable: {column.get('nullable')}, Primary Key: {column.get('primary_key')}")
             print()
 
     def get_schema_keys(self):
@@ -81,10 +94,18 @@ class SchemaProcessor:
                     else:
                         f.write(f"Table: {table_name}\n")
                     for column in columns:
+                        if 'foreign_keys' in column and isinstance(column['foreign_keys'], list):
+                            for fk in column['foreign_keys']:
+                                fk_col = fk.get('column', 'unknown')
+                                fk_ref = fk.get('references', 'unknown')
+                                f.write(f"  Foreign Key: {fk_col} -> {fk_ref}\n")
+                            continue
+                        if 'name' not in column:
+                            continue
                         col_name = column['name']
                         if(self.needs_escape(col_name)):
                             display_name = f"[{col_name}]"
                         else:
                             display_name = col_name
-                        f.write(f"  Column: {display_name}, Type: {column['type']}, Nullable: {column['nullable']}, Primary Key: {column['primary_key']}\n")
+                        f.write(f"  Column: {display_name}, Type: {column.get('type')}, Nullable: {column.get('nullable')}, Primary Key: {column.get('primary_key')}\n")
                     f.write("\n")

@@ -15,9 +15,9 @@ dependencies = [
     "psycopg2-binary>=2.9.11",
     "pycrypto>=2.6.1",
     "pyjwt>=2.12.1",
+    "pytest>=9.0.3",
     "python-jwt>=4.1.0",
     "sentence-transformers>=5.2.0",
     "sqlalchemy>=2.0.44",
-    "unittest",
     "uvicorn>=0.38.0",
 ]

@@ -13,7 +13,7 @@ class SQLAlchemySession:
 
     def execute_query(self, query):
         try:
-            result = self.session.execute(text(query.query))
+            result = self.session.execute(text(query))
             rows = result.fetchall()
 
             if rows:
