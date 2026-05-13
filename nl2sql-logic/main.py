@@ -24,6 +24,8 @@ from example_manager import ExampleManager
 from auth_controller import AuthController
 app = FastAPI()
 
+invalid_session_response = {"error": "Invalid session ID."}
+
 # CORS configuration - allow both localhost and 127.0.0.1
 origins = [
     "http://localhost:3000",
@@ -92,7 +94,7 @@ def process_nl_input(data: NLInputModel):
         return {"error": "Session ID is required."}
     session = session_manager.get_session(session_id)
     if not session:
-        return {"error": "Invalid session ID."}
+        return invalid_session_response
     prompt_manager = session["prompt_manager"]
     response = prompt_manager.get_response(data.nl_input)
     query = extract_sql_query(response)
@@ -228,7 +230,7 @@ def delete_conversation_endpoint(conversation_id: str):
 def execute_sql_query(session_id: str, query: QueryModel):
     session = session_manager.get_session(session_id)
     if not session:
-        return {"error": "Invalid session ID."}
+        return invalid_session_response
     if "SELECT" not in query.query.upper():
         return {"error": "Only SELECT queries are allowed for execution."}
     try:
@@ -245,8 +247,8 @@ def execute_sql_query(session_id: str, query: QueryModel):
 def validate_nl_input(session_id: str, data: NLInputModel):
     session = session_manager.get_session(session_id)
     if not session:
-        return {"error": "Invalid session ID."}
-    
+        return invalid_session_response
+
     try:
         sqlalchemy_session = session["sqlalchemy_session"]
         prompt_manager = session["prompt_manager"]
@@ -267,7 +269,7 @@ def validate_nl_input(session_id: str, data: NLInputModel):
 def generate_retry_prompt(session_id: str, data: NLInputModel, previous_sql: str, error_message: str = None):
     session = session_manager.get_session(session_id)
     if not session:
-        return {"error": "Invalid session ID."}
+        return invalid_session_response
     
     try:
         prompt_manager = session["prompt_manager"]

@@ -4,12 +4,21 @@ import ast
 
 class ResultStorage:
     def __init__(self):
-        pass
+        self.connection_failure_text = "Failed to connect to the database."
+        try:
+            conn = get_connection()
+            if not conn:
+                print(self.connection_failure_text)
+            else:
+                print("Database connection successful!")
+                conn.close()
+        except Exception as e:
+            print(f"{self.connection_failure_text} Error: {e}")
 
     def save_query_execution(self, conversation_id, sql_query, result):
         conn = get_connection()
         if not conn:
-            print("Failed to connect to the database.")
+            print(self.connection_failure_text)
             return False
         try:
             cursor = conn.cursor()
@@ -35,7 +44,7 @@ class ResultStorage:
         """
         conn = get_connection()
         if not conn:
-            print("Failed to connect to the database.")
+            print(self.connection_failure_text)
             return {}
         try:
             cursor = conn.cursor()

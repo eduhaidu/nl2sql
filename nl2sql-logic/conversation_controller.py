@@ -3,7 +3,16 @@ from postgres_connection import get_connection
 
 class ConversationController:
     def __init__(self):
-        pass
+        self.connection_failure_text = "Failed to connect to the database."
+        try:
+            conn = get_connection()
+            if not conn:
+                print(self.connection_failure_text)
+            else:
+                print("Database connection successful!")
+                conn.close()
+        except Exception as e:
+            print(f"{self.connection_failure_text} Error: {e}")
 
     def test_db_connection(self):
         conn = get_connection()
@@ -19,7 +28,7 @@ class ConversationController:
         # Adds a new conversation to the database and returns the conversation ID
         conn = get_connection()
         if not conn:
-            print("Failed to connect to the database.")
+            print(self.connection_failure_text)
             return None
         try:
             cursor = conn.cursor()
@@ -41,7 +50,7 @@ class ConversationController:
         # Retrieves a list of all conversations with their IDs and creation timestamps
         conn = get_connection()
         if not conn:
-            print("Failed to connect to the database.")
+            print(self.connection_failure_text)
             return None
         try:
             cursor = conn.cursor()
@@ -61,7 +70,7 @@ class ConversationController:
         # Retrieves the conversation history for a given conversation ID
         conn = get_connection()
         if not conn:
-            print("Failed to connect to the database.")
+            print(self.connection_failure_text)
             return None
         try:
             cursor = conn.cursor()
@@ -81,7 +90,7 @@ class ConversationController:
         # Adds a message to the conversation history for a given conversation ID
         conn = get_connection()
         if not conn:
-            print("Failed to connect to the database.")
+            print(self.connection_failure_text)
             return False
         try:
             cursor = conn.cursor()
@@ -99,7 +108,7 @@ class ConversationController:
         # Retrieves conversation details including db_url and database_type
         conn = get_connection()
         if not conn:
-            print("Failed to connect to the database.")
+            print(self.connection_failure_text)
             return None
         try:
             cursor = conn.cursor()
@@ -126,7 +135,7 @@ class ConversationController:
         # Optional: Add a name column to conversations table and implement renaming functionality
         conn = get_connection()
         if not conn:
-            print("Failed to connect to the database.")
+            print(self.connection_failure_text)
             return False
         try:
             cursor = conn.cursor()
@@ -144,7 +153,7 @@ class ConversationController:
         # Deletes a conversation and its history from the database
         conn = get_connection()
         if not conn:
-            print("Failed to connect to the database.")
+            print(self.connection_failure_text)
             return False
         try:
             cursor = conn.cursor()
