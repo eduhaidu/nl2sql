@@ -231,10 +231,6 @@ def execute_sql_query(session_id: str, query: QueryModel):
         return {"error": "Invalid session ID."}
     if "SELECT" not in query.query.upper():
         return {"error": "Only SELECT queries are allowed for execution."}
-    # schema_processor = session["schema_processor"]
-    # schema_info = schema_processor.process_schema()
-    # if not check_if_query_uses_schema(query.query, schema_info):
-    #     return {"error": "The query does not appear to use the database schema. Please ensure your query references the correct tables and columns."}
     try:
         sqlalchemy_session = session["sqlalchemy_session"]
         result = sqlalchemy_session.execute_query(query)

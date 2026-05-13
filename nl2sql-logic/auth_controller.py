@@ -4,12 +4,21 @@ import jwt
 import dotenv
 class AuthController:
     def __init__(self):
-        pass
+        self.connection_failure_text = "Failed to connect to the database."
+        try:
+            conn = get_connection()
+            if not conn:
+                print(self.connection_failure_text)
+            else:
+                print("Database connection successful!")
+                conn.close()
+        except Exception as e:
+            print(f"{self.connection_failure_text} Error: {e}")
 
     def authenticate_user(self, username, password):
         conn = get_connection()
         if not conn:
-            print("Failed to connect to the database.")
+            print(self.connection_failure_text)
             return False
         try:
             cursor = conn.cursor()
@@ -38,7 +47,7 @@ class AuthController:
     def register_user(self, username, password):
         conn = get_connection()
         if not conn:
-            print("Failed to connect to the database.")
+            print(self.connection_failure_text)
             return False
         try:
             cursor = conn.cursor()
@@ -63,7 +72,7 @@ class AuthController:
     def get_user_id(self, username):
         conn = get_connection()
         if not conn:
-            print("Failed to connect to the database.")
+            print(self.connection_failure_text)
             return None
         try:
             cursor = conn.cursor()
