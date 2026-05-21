@@ -21,11 +21,13 @@ export default function ImportDBModal({ isOpen, onClose }: ImportDBModalProps) {
     
     const formData = new FormData(event.currentTarget);
     const dbURL = formData.get("db-url") as string;
+    const userId = localStorage.getItem("user_id");
 
     try {
       const response = await axios.post("http://127.0.0.1:8000/dbimport", {
         database_url: dbURL,
-        database_type: dbType
+        database_type: dbType,
+        user_id: userId,
       });
       
       const { session_id, conversation_id } = response.data;

@@ -9,15 +9,7 @@ from ConversationNameModel import ConversationNameModel
 from session_manager import SessionManager
 from QueryExtractor import extract_sql_query
 from ValidationModule import Validator
-from conversation_controller import (
-    create_conversation, 
-    get_conversations, 
-    get_conversation_history, 
-    add_message_to_conversation, 
-    get_conversation_details, 
-    rename_conversation as rename_conversation_db,  # ← Alias to avoid name collision
-    delete_conversation
-)
+from conversation_controller import ConversationController
 from result_storage import ResultStorage
 from feedback_storage import FeedbackStorage
 from example_manager import ExampleManager
@@ -98,18 +90,22 @@ def process_nl_input(data: NLInputModel):
     prompt_manager = session["prompt_manager"]
     response = prompt_manager.get_response(data.nl_input)
     query = extract_sql_query(response)
-    add_message_to_conversation(session["conversation_id"], data.nl_input, "user")
-    add_message_to_conversation(session["conversation_id"], response, "assistant")
+    conversation_controller = ConversationController()
+    conversation_controller.add_message_to_conversation(session["conversation_id"], data.nl_input, "user")
+    conversation_controller.add_message_to_conversation(session["conversation_id"], response, "assistant")
     return {"response": response, "query": query}
 
 @app.post("/dbimport")
 def update_database_url(data: DBURLInputModel):
     if not data.database_url:
         return {"error": "Database URL is required."}
+    if not data.user_id:
+        return {"error": "user_id is required to create a conversation."}
     
     try:
+        conversation_controller = ConversationController()
         # Create a new conversation for this database connection
-        conversation_id = create_conversation(data.database_url, data.database_type, data.user_id)
+        conversation_id = conversation_controller.create_conversation(data.database_url, data.database_type, data.user_id)
         print(f"New conversation created with ID: {conversation_id}")
         # Create a new session
         session_id = session_manager.create_session(data.database_url, database_type=data.database_type, conversation_id=conversation_id)
@@ -123,19 +119,21 @@ def update_database_url(data: DBURLInputModel):
     
 @app.get("/conversations")
 def list_conversations(user_id: str):
-    conversations = get_conversations(user_id)
+    conversation_controller = ConversationController()
+    conversations = conversation_controller.get_conversations(user_id)
     if conversations is None:
         return {"error": "Failed to retrieve conversations."}
     return {"conversations": conversations}
 
 @app.get("/conversations/{conversation_id}")
 def conversation_history(conversation_id: str):
-    history = get_conversation_history(conversation_id)
+    conversation_controller = ConversationController()
+    history = conversation_controller.get_conversation_history(conversation_id)
     if history is None:
         return {"error": "Failed to retrieve conversation history."}
 
     # Get conversation details (including db_url)
-    conversation = get_conversation_details(conversation_id)
+    conversation = conversation_controller.get_conversation_details(conversation_id)
     if not conversation:
         return {"error": "Conversation not found."}
 
@@ -210,7 +208,8 @@ def conversation_history(conversation_id: str):
 
 @app.put("/conversations/{conversation_id}")
 def rename_conversation(conversation_id: str, new_name: ConversationNameModel):
-    success = rename_conversation_db(conversation_id, new_name.name)  # ← Now calls the controller function
+    conversation_controller = ConversationController()
+    success = conversation_controller.rename_conversation(conversation_id, new_name.name)
     if success:
         return {"message": f"Conversation renamed to {new_name.name} successfully."}
     else:       
@@ -218,7 +217,8 @@ def rename_conversation(conversation_id: str, new_name: ConversationNameModel):
 
 @app.delete("/conversations/{conversation_id}")
 def delete_conversation_endpoint(conversation_id: str):
-    delete_conversation(conversation_id)
+    conversation_controller = ConversationController()
+    conversation_controller.delete_conversation(conversation_id)
     # Also cleanup any associated session
     for sid, session in list(session_manager.sessions.items()):
         if session.get("conversation_id") == conversation_id:
@@ -235,7 +235,7 @@ def execute_sql_query(session_id: str, query: QueryModel):
         return {"error": "Only SELECT queries are allowed for execution."}
     try:
         sqlalchemy_session = session["sqlalchemy_session"]
-        result = sqlalchemy_session.execute_query(query)
+        result = sqlalchemy_session.execute_query(query.query)
         # Store the result in the database
         result_storage = ResultStorage()
         result_storage.save_query_execution(session["conversation_id"], query.query, result)

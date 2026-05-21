@@ -171,6 +171,22 @@
         "question": "What are the longest tracks in each genre?",
         "sql": "SELECT G.Name AS GenreName, MAX(T.Milliseconds) AS LongestTrackDuration, T.Name AS TrackName\nFROM Genre AS G\nJOIN Track AS T ON G.GenreId = T.GenreId -- Ensure the join is between genre and track using common key (GenreId) for duration comparison\nGROUP BY G.Name;",
         "source": "production",
-        "added_at": "2026-04-18T14:24:45.650085"
+        "added_at": "2026-04-18T14:24:45.650085",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "list all products from the 'Beverages' category",
+        "sql": "SELECT P.ProductName FROM Products P INNER JOIN Categories C ON P.CategoryID = C.CategoryID WHERE C.CategoryName = 'Beverages';",
+        "source": "production",
+        "added_at": "2026-05-21T16:14:22.033255",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "How many orders has each customer placed?",
+        "sql": "SELECT C.CompanyName, COUNT(O.OrderID) AS NumberOfOrders FROM Customers C JOIN Orders O ON C.CustomerID = O.CustomerID GROUP BY C.CompanyName HAVING COUNT(O.OrderID) > 15;",
+        "source": "production",
+        "added_at": "2026-05-21T16:16:20.232589"
     }
 ]
