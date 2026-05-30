@@ -187,6 +187,14 @@
         "question": "How many orders has each customer placed?",
         "sql": "SELECT C.CompanyName, COUNT(O.OrderID) AS NumberOfOrders FROM Customers C JOIN Orders O ON C.CustomerID = O.CustomerID GROUP BY C.CompanyName HAVING COUNT(O.OrderID) > 15;",
         "source": "production",
-        "added_at": "2026-05-21T16:16:20.232589"
+        "added_at": "2026-05-21T16:16:20.232589",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "List all products that are currently out of stock",
+        "sql": "SELECT P.ProductName FROM Products P WHERE P.UnitsInStock = 0;",
+        "source": "production",
+        "added_at": "2026-05-21T17:51:18.227437"
     }
 ]

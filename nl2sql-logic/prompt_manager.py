@@ -340,6 +340,8 @@ class PromptManager:
             filtered_schema = dict(fallback_items)
         formatted_schema = self.format_filtered_schema(filtered_schema)
 
+        is_retry_prompt = self._is_retry_prompt(nl_input)
+
         # Load manual descriptions for better table guidance
         manual_descriptions = self._load_manual_descriptions()
 
@@ -380,6 +382,23 @@ class PromptManager:
                 "- ContactName belongs to Customers table, NOT Employees\n\n"
             )
 
+        if self._has_employee_territory_tables(filtered_schema):
+            prompt += (
+                "TABLE RELATIONSHIP HINT:\n"
+                "- Employees is the main table for employee attributes like EmployeeID and names.\n"
+                "- EmployeeTerritories is a linking table between employees and territories; do not use it as the primary source for employee attributes.\n"
+                "- If the question asks about employees, start from Employees and only join EmployeeTerritories when territory membership is required.\n\n"
+            )
+
+        if is_retry_prompt:
+            prompt += (
+                "RETRY MODE:\n"
+                "- The previous SQL was rejected, so regenerate the query from scratch.\n"
+                "- Do NOT reuse the exact same FROM/JOIN structure, aliases, or table choices if they caused the error.\n"
+                "- Verify every alias before using it. If an alias is wrong, replace the table reference rather than editing only the alias token.\n"
+                "- Prefer a different, correct join path over repeating the same query.\n\n"
+            )
+
         examples = self.select_relevant_examples(nl_input)
         if examples:
             prompt += "Examples:\n"
@@ -389,6 +408,28 @@ class PromptManager:
         # Strong closing instruction
         prompt += "Generate ONLY the SQL query - no explanations, no alternatives, no text. Just executable SQL:"
         return prompt
+
+    def _is_retry_prompt(self, nl_input):
+        """Detect whether the input is a retry request with a previously failed query."""
+        lowered = nl_input.lower()
+        retry_markers = [
+            "the previous sql was",
+            "rewrite the sql",
+            "regenerate the query",
+            "corrected sql query",
+            "fixes this error",
+            "got this error",
+            "but got this error",
+        ]
+        return any(marker in lowered for marker in retry_markers)
+
+    def _has_employee_territory_tables(self, filtered_schema):
+        """Check whether both Employees and EmployeeTerritories are available in the current schema slice."""
+        if not isinstance(filtered_schema, dict):
+            return False
+
+        table_names = {name.lower() for name in filtered_schema.keys()}
+        return "employees" in table_names and "employeeterritories" in table_names
         
     def trim_conversation_history(self):
         """Keep only system prompt + last N Q&A turns to prevent context overflow"""

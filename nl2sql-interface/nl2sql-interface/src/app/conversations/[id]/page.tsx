@@ -17,14 +17,18 @@ interface Message {
 }
 
 function generateRetryPrompt(originalNL: string, failedQuery: string, errorMessage: string) {
+  const aliasHint = /alias|table|column|no such column|no such table/i.test(errorMessage)
+    ? "\nImportant: the failure is likely caused by a wrong table or alias choice. Re-evaluate the FROM/JOIN clauses and define every alias from the correct table before using it."
+    : "";
+
   return `I tried to answer: "${originalNL}"
-With this query:
+The previous SQL was:
 ${failedQuery}
 
-But got this error:
+The database returned this error:
 ${errorMessage}
 
-Please generate a corrected SQL query that fixes this error.`;
+Rewrite the SQL from scratch. Do NOT copy or lightly edit the previous query.\n\nRequirements:\n- Produce a brand new SQL query only.\n- Fix any wrong table names, aliases, joins, or column references.\n- If an alias is used, define it from the correct table first and use it consistently.\n- If the previous query used the wrong table, replace it with the correct one rather than reusing it.${aliasHint}\n\nReturn only the corrected SQL query.`;
 }
 
 export default function ConversationPage(props: {
