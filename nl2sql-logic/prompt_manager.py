@@ -9,7 +9,7 @@ class PromptManager:
     _shared_model = None
     _shared_model_device = None
 
-    def __init__(self, nl_input="", model_name='nl2sql', schema=None, database_type='sqlite'):
+    def __init__(self, nl_input="", model_name='qwen2.5-coder:7b', schema=None, database_type='sqlite'):
         self.nl_input = nl_input
         self.model_name = model_name
         self.schema = schema
@@ -37,6 +37,7 @@ class PromptManager:
             "9. Your entire response should be executable SQL - nothing else.\n"
             "10. ONLY use the tables mentioned in the schema descriptions. NEVER use tables that aren't explicitly recommended for the question type.\n"
             "11. Do NOT create unnecessary joins. Each join must serve a specific purpose stated in the question.\n"
+            "12. Think step-by-step but do NOT show your reasoning. Instead, directly produce the final SQL query that would be the last step of your reasoning process."
         )
         context_prompt += "\n" + rules_prompt
         if self.database_type:
@@ -63,6 +64,61 @@ class PromptManager:
 
         self.model = PromptManager._shared_model
 
+    def _normalize_query_terms(self, text):
+        terms = set(re.findall(r"[a-z0-9]+", (text or "").lower()))
+        expanded_terms = set(terms)
+        for term in terms:
+            if len(term) > 3 and term.endswith("s"):
+                expanded_terms.add(term[:-1])
+        return expanded_terms
+
+    def _extract_related_tables(self, table_data):
+        related_tables = set()
+
+        if isinstance(table_data, dict) and 'columns' in table_data:
+            columns = table_data['columns']
+        else:
+            columns = table_data
+
+        for column in columns or []:
+            for fk in column.get('foreign_keys', []) if isinstance(column, dict) else []:
+                references = fk.get('references', '')
+                if references:
+                    related_tables.add(references.split('.')[0])
+
+        return related_tables
+
+    def _expand_with_related_tables(self, selected_tables):
+        expanded_tables = dict(selected_tables)
+        queue = list(expanded_tables.keys())
+        max_tables = min(len(self.schema), 6)
+
+        while queue and len(expanded_tables) < max_tables:
+            current_table = queue.pop(0)
+            current_data = self.schema.get(current_table)
+            if current_data is None:
+                continue
+
+            related_tables = self._extract_related_tables(current_data)
+
+            for related_table in related_tables:
+                if related_table in self.schema and related_table not in expanded_tables:
+                    expanded_tables[related_table] = self.schema[related_table]
+                    queue.append(related_table)
+
+            for table_name, table_data in self.schema.items():
+                if table_name in expanded_tables:
+                    continue
+
+                if current_table in self._extract_related_tables(table_data):
+                    expanded_tables[table_name] = table_data
+                    queue.append(table_name)
+
+                if len(expanded_tables) >= max_tables:
+                    break
+
+        return expanded_tables
+
     def filter_relevant_tables(self, nl_input):
         # Safety check: ensure schema is a dictionary
         if not isinstance(self.schema, dict) or not self.schema:
@@ -70,6 +126,7 @@ class PromptManager:
 
         model = self.model if hasattr(self, 'model') else SentenceTransformer('all-MiniLM-L6-v2')
         nl_embedding = model.encode(nl_input, convert_to_tensor=True)
+        query_terms = self._normalize_query_terms(nl_input)
 
         # Load manual descriptions if available
         manual_descriptions = self._load_manual_descriptions()
@@ -90,6 +147,13 @@ class PromptManager:
             column_names = [col['name'] for col in columns if 'name' in col]
             table_text = table_name + ' ' + ' '.join(column_names)
 
+            table_terms = self._normalize_query_terms(table_text)
+            if table_name in manual_descriptions:
+                table_terms.update(self._normalize_query_terms(manual_descriptions[table_name].get('description', '')))
+                table_terms.update(self._normalize_query_terms(' '.join(manual_descriptions[table_name].get('common_queries', []))))
+            elif table_description:
+                table_terms.update(self._normalize_query_terms(table_description))
+
             # Prioritize manual descriptions over auto-generated ones
             if table_name in manual_descriptions:
                 table_text += ' ' + manual_descriptions[table_name].get('description', '')
@@ -104,21 +168,29 @@ class PromptManager:
 
             table_embedding = model.encode(table_text, convert_to_tensor=True)
             similarity = util.pytorch_cos_sim(nl_embedding, table_embedding).item()
+            lexical_overlap = len(query_terms.intersection(table_terms))
+            if lexical_overlap:
+                similarity += min(0.15 + (0.08 * lexical_overlap), 0.35)
+
+            if table_name in query_terms:
+                similarity += 0.15
 
             table_scores.append((similarity, table_name, table_data))
 
         # Sort by similarity and apply stricter threshold
         table_scores.sort(key=lambda x: x[0], reverse=True)
 
-        # Keep top 3-4 tables or those above 0.5 similarity
+        # Keep top tables that are clearly relevant, then expand to neighbors
         for similarity, table_name, table_data in table_scores[:4]:
-            if similarity > 0.4:  # Slightly lower threshold but with ranking
+            if similarity > 0.35:
                 relevant_tables[table_name] = table_data
 
         # Fallback: if we got nothing, take top 2
         if not relevant_tables and table_scores:
             for similarity, table_name, table_data in table_scores[:2]:
                 relevant_tables[table_name] = table_data
+
+        relevant_tables = self._expand_with_related_tables(relevant_tables)
 
         return relevant_tables
 

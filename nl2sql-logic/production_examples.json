@@ -195,6 +195,102 @@
         "question": "List all products that are currently out of stock",
         "sql": "SELECT P.ProductName FROM Products P WHERE P.UnitsInStock = 0;",
         "source": "production",
-        "added_at": "2026-05-21T17:51:18.227437"
+        "added_at": "2026-05-21T17:51:18.227437",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "which actors have the first name 'JOHN'?",
+        "sql": "SELECT first_name, last_name FROM actor WHERE first_name = 'JOHN'",
+        "source": "production",
+        "added_at": "2026-06-08T16:51:32.421561",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "list the top 10 most rented films",
+        "sql": "SELECT title FROM film JOIN inventory ON film.film_id = inventory.film_id GROUP BY title ORDER BY COUNT(*) DESC LIMIT 10",
+        "source": "production",
+        "added_at": "2026-06-08T16:52:17.349897",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "How many films are in each rating category (G, PG, PG-13, R, NC-17)?",
+        "sql": "SELECT rating, COUNT(*) FROM film GROUP BY rating ORDER BY COUNT(*) DESC LIMIT 10",
+        "source": "production",
+        "added_at": "2026-06-08T16:53:56.862830",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "which actors appear in the most films?",
+        "sql": "SELECT A.first_name, A.last_name, COUNT(*) AS num_films\nFROM actor AS A\nJOIN film_actor AS FA ON A.actor_id = FA.actor_id\nGROUP BY A.actor_id\nORDER BY num_films DESC\nLIMIT 1",
+        "source": "production",
+        "added_at": "2026-06-08T17:02:38.351365",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "which films are currently rented out (not yet returned)?",
+        "sql": "SELECT F.title FROM film AS F JOIN inventory AS I ON F.film_id = I.film_id WHERE I.store_id = 1 AND I.inventory_id NOT IN (SELECT rental_id FROM rental) LIMIT 10",
+        "source": "production",
+        "added_at": "2026-06-08T17:03:40.160538",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "which customers have spent more than 150$ total?",
+        "sql": "SELECT C.first_name, C.last_name, SUM(P.amount) AS total_spent FROM customer AS C JOIN payment AS P ON C.customer_id = P.customer_id GROUP BY C.customer_id HAVING total_spent > 150 LIMIT 10",
+        "source": "production",
+        "added_at": "2026-06-08T17:07:35.835840",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "which store has generated more total revenue?",
+        "sql": "SELECT S.store_id FROM store AS S JOIN inventory AS I ON S.store_id = I.store_id WHERE I.inventory_id IN (SELECT rental_id FROM rental) GROUP BY S.store_id ORDER BY COUNT(I.inventory_id) DESC LIMIT 1",
+        "source": "production",
+        "added_at": "2026-06-08T17:09:05.784503",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": " What is the average amount paid per rental, broken down by customer city?",
+        "sql": "SELECT C.first_name, C.last_name, AVG(P.amount) AS avg_amount FROM customer AS C JOIN payment AS P ON C.customer_id = P.customer_id GROUP BY C.customer_id ORDER BY avg_amount DESC LIMIT 1",
+        "source": "production",
+        "added_at": "2026-06-08T17:09:46.098054",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "which actors have never appeared in an 'Action' film?",
+        "sql": "SELECT A.first_name, A.last_name FROM actor AS A WHERE A.actor_id NOT IN (SELECT FA.actor_id FROM film_actor AS FA JOIN film_category AS FC ON FA.film_id = FC.film_id WHERE FC.category_id = (SELECT category_id FROM category WHERE name = 'Action'))",
+        "source": "production",
+        "added_at": "2026-06-08T17:11:19.556678",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "list all the films in the Comedy category",
+        "sql": "SELECT title FROM film JOIN film_category ON film.film_id = film_category.film_id WHERE category_id = (SELECT category_id FROM category WHERE name = 'Comedy')",
+        "source": "production",
+        "added_at": "2026-06-19T13:30:16.352908",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": " For each month, which film category generated the most revenue?",
+        "sql": "SELECT category.name, MAX(P.amount) AS max_revenue FROM film JOIN film_category ON film.film_id = film_category.film_id JOIN category ON film_category.category_id = category.category_id JOIN inventory ON film.film_id = inventory.film_id JOIN rental ON inventory.inventory_id = rental.inventory_id JOIN payment P ON rental.rental_id = P.rental_id WHERE P.amount > 0 GROUP BY category.name ORDER BY max_revenue DESC",
+        "source": "production",
+        "added_at": "2026-06-19T13:34:11.643477",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "rank customers by total spending using a window function",
+        "sql": "SELECT customer.first_name, customer.last_name, SUM(payment.amount) AS total_spending FROM customer JOIN payment ON customer.customer_id = payment.customer_id GROUP BY customer.customer_id ORDER BY total_spending DESC",
+        "source": "production",
+        "added_at": "2026-06-19T13:55:35.779673"
     }
 ]
