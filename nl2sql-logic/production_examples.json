@@ -291,6 +291,86 @@
         "question": "rank customers by total spending using a window function",
         "sql": "SELECT customer.first_name, customer.last_name, SUM(payment.amount) AS total_spending FROM customer JOIN payment ON customer.customer_id = payment.customer_id GROUP BY customer.customer_id ORDER BY total_spending DESC",
         "source": "production",
-        "added_at": "2026-06-19T13:55:35.779673"
+        "added_at": "2026-06-19T13:55:35.779673",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "list all artists in alphabetical order",
+        "sql": "SELECT Name FROM Artist ORDER BY Name ASC;",
+        "source": "production",
+        "added_at": "2026-07-12T13:04:16.997129",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "What are the most popular genres by number of tracks sold?",
+        "sql": "SELECT G.Name AS GenreName, COUNT(I.InvoiceLineId) AS TotalPurchases\nFROM Genre AS G\nJOIN Track AS T ON G.GenreId = T.GenreId\nJOIN InvoiceLine AS I ON T.TrackId = I.TrackId\nGROUP BY G.Name\nORDER BY TotalPurchases DESC;",
+        "source": "production",
+        "added_at": "2026-07-12T13:06:17.032716",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "What is the longest track in each genre?",
+        "sql": "SELECT G.Name AS GenreName, MAX(T.Milliseconds) AS LongestTrackDuration, T.Name AS TrackName\nFROM Genre AS G\nJOIN Track AS T ON G.GenreId = T.GenreId -- Ensure the join is between genre and track using common key (GenreId) for duration comparison\nGROUP BY G.Name;",
+        "source": "production",
+        "added_at": "2026-07-12T13:08:47.546837",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "What is the total revenue per product category?",
+        "sql": "SELECT SUM(OD.UnitPrice * OD.Quantity) AS TotalRevenue FROM Products P JOIN OrderDetails OD ON P.ProductID = OD.ProductID GROUP BY P.CategoryID;",
+        "source": "production",
+        "added_at": "2026-07-12T13:15:23.884022",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "list the top 5 best selling products by quantity sold",
+        "sql": "SELECT P.ProductName, SUM(OD.Quantity) AS TotalQuantity FROM Products P JOIN OrderDetails OD ON P.ProductID = OD.ProductID GROUP BY P.ProductName ORDER BY TotalQuantity DESC LIMIT 5;",
+        "source": "production",
+        "added_at": "2026-07-12T13:16:26.674670",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "Rank employees by total revenue generated from their sales",
+        "sql": "SELECT E.FirstName, E.LastName, SUM(OD.UnitPrice * OD.Quantity) AS TotalRevenue FROM Employees E JOIN Orders O ON E.EmployeeID = O.EmployeeID JOIN OrderDetails OD ON O.OrderID = OD.OrderID GROUP BY E.EmployeeID ORDER BY TotalRevenue DESC;",
+        "source": "production",
+        "added_at": "2026-07-12T13:20:53.714677",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "List all films in the Comedy category",
+        "sql": "SELECT title FROM film JOIN film_category ON film.film_id = film_category.film_id WHERE category_id = (SELECT category_id FROM category WHERE name = 'Comedy')",
+        "source": "production",
+        "added_at": "2026-07-12T13:55:49.979721",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "Rank customers by total spending using a window function",
+        "sql": "SELECT customer.first_name, customer.last_name, SUM(payment.amount) AS total_spending FROM customer JOIN payment ON customer.customer_id = payment.customer_id GROUP BY customer.customer_id ORDER BY total_spending DESC",
+        "source": "production",
+        "added_at": "2026-07-12T13:59:14.098450",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "list all film in the action category",
+        "sql": "SELECT F.title FROM film AS F JOIN film_category AS FC ON F.film_id = FC.film_id WHERE FC.category_id = ( SELECT category_id FROM category WHERE name = 'Action' )",
+        "source": "production",
+        "added_at": "2026-07-13T18:28:34.434082",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "List the top 5 products by total revenue",
+        "sql": "SELECT P.ProductName, SUM(OD.UnitPrice * OD.Quantity) AS TotalRevenue FROM Products P JOIN OrderDetails OD ON P.ProductID = OD.ProductID GROUP BY P.ProductID ORDER BY TotalRevenue DESC LIMIT 5;",
+        "source": "production",
+        "added_at": "2026-07-13T22:50:08.776771"
     }
 ]

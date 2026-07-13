@@ -228,6 +228,7 @@ export default function ConversationPage(props: {
       return;
     }
     try {
+      setShowRetryEditor(false);
       setThinking(true);
       setMessages(prevMessages => [...prevMessages, { id: crypto.randomUUID(), message: editedPrompt, isUser: true }]);
 
@@ -301,7 +302,7 @@ export default function ConversationPage(props: {
 
         {/* Options Menu */}
         {showOptionsMenu && (
-          <div className="absolute top-12 right-4 bg-gray-800 rounded-lg shadow-lg py-2 w-48 z-10">
+          <div className="absolute bottom-12 left-4 bg-gray-800 rounded-lg shadow-lg py-2 w-48 z-10">
             <button
               onClick={() => {
                 localStorage.removeItem("token");

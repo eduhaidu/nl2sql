@@ -43,7 +43,7 @@ export default function ResultTable({result, conversation_id, userQuestion, gene
     return (
         <div className="w-full">
             <div className="max-h-96 overflow-auto rounded-lg border border-gray-300">
-            <table className="min-w-full bg-white border border-gray-300 rounded-lg">
+            <table className="min-w-full bg-gray-100 border border-gray-300 rounded-lg">
                 <thead>
                     <tr>
                         {columns.map((col) => (

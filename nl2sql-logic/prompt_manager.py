@@ -9,7 +9,7 @@ class PromptManager:
     _shared_model = None
     _shared_model_device = None
 
-    def __init__(self, nl_input="", model_name='qwen2.5-coder:7b', schema=None, database_type='sqlite'):
+    def __init__(self, nl_input="", model_name='gemma4:31b-cloud', schema=None, database_type='sqlite'):
         self.nl_input = nl_input
         self.model_name = model_name
         self.schema = schema
