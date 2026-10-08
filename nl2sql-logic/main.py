@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from NLInputModel import NLInputModel
@@ -23,7 +25,8 @@ origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8000",
-    "http://127.0.0.1:8000"
+    "http://127.0.0.1:8000",
+    os.getenv("FRONTEND_URL", "http://localhost:3000")  # Allow dynamic frontend URL from environment variable  
 ]
 
 app.add_middleware(

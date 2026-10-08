@@ -371,6 +371,22 @@
         "question": "List the top 5 products by total revenue",
         "sql": "SELECT P.ProductName, SUM(OD.UnitPrice * OD.Quantity) AS TotalRevenue FROM Products P JOIN OrderDetails OD ON P.ProductID = OD.ProductID GROUP BY P.ProductID ORDER BY TotalRevenue DESC LIMIT 5;",
         "source": "production",
-        "added_at": "2026-07-13T22:50:08.776771"
+        "added_at": "2026-07-13T22:50:08.776771",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "What is the total revenue per film category?",
+        "sql": "SELECT C.name, SUM(P.amount) AS total_revenue\nFROM category AS C\nJOIN film_category AS FC ON C.category_id = FC.category_id\nJOIN inventory AS I ON FC.film_id = I.film_id\nJOIN rental AS R ON I.inventory_id = R.inventory_id\nJOIN payment AS P ON R.rental_id = P.rental_id\nGROUP BY C.name;",
+        "source": "production",
+        "added_at": "2026-07-14T11:17:17.348096",
+        "corrected": false,
+        "original_sql": null
+    },
+    {
+        "question": "For each month which category of films generated the most revenue?",
+        "sql": "SELECT month, category_name\nFROM (\n    SELECT \n        STRFTIME('%m', R.rental_date) AS month, \n        C.name AS category_name, \n        SUM(P.amount) AS total_revenue,\n        RANK() OVER (PARTITION BY STRFTIME('%m', R.rental_date) ORDER BY SUM(P.amount) DESC) as rank\n    FROM category AS C\n    JOIN film_category AS FC ON C.category_id = FC.category_id\n    JOIN inventory AS I ON FC.film_id = I.film_id\n    JOIN rental AS R ON I.inventory_id = R.inventory_id\n    JOIN payment AS P ON R.rental_id = P.rental_id\n    GROUP BY month, category_name\n) AS ranked_revenue\nWHERE rank = 1;",
+        "source": "production",
+        "added_at": "2026-07-14T11:57:25.982620"
     }
 ]
